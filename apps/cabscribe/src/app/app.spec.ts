@@ -53,6 +53,17 @@ describe('App', () => {
     ).toBeNull();
     expect(compiled.textContent).not.toContain('DECODER CONFIGURATION');
     expect(compiled.textContent).not.toContain('No operation history is saved');
+    expect(compiled.querySelector('.address-card .card-heading #address-confirmation-help')).not.toBeNull();
+    expect(compiled.textContent).not.toContain('SERIAL MONITOR');
+    expect(compiled.querySelector('.app-footer')?.textContent).toContain('Copyright © 2026 Larry Weinheimer');
+    expect(compiled.querySelector('.app-footer')?.textContent).not.toContain('No cloud account required');
+    const github = compiled.querySelector<HTMLAnchorElement>('.github-button');
+    expect(github?.href).toBe('https://github.com/aKnownGlitch/cabscribe');
+    expect(github?.target).toBe('_blank');
+    expect(github?.rel).toBe('noopener noreferrer');
+    expect(github?.textContent?.trim()).toBe('');
+    expect(github?.getAttribute('aria-label')).toContain('GitHub');
+    expect(github?.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
     expect(compiled.textContent).toContain(
       'Serial communication is not configured in this build.'
     );
@@ -98,6 +109,49 @@ describe('App', () => {
     expect(fixture.nativeElement.querySelector('.mode-chip')?.textContent).toContain(
       'Service Mode'
     );
+  });
+
+  it('confirms from the target section, shows errors and clears the result when the address changes', async () => {
+    let incoming!: (message: { direction: 'incoming'; message: string }) => void;
+    const transport = {
+      listPorts: vi.fn().mockResolvedValue([{ id: 'test', label: 'DCC-EX' }]),
+      connect: vi.fn().mockResolvedValue({
+        capabilities: { serviceModeRead: false, serviceModeWrite: false },
+      }),
+      requestLocomotiveAddress: vi.fn().mockResolvedValue(undefined),
+      onSerialMessage: (listener: typeof incoming) => { incoming = listener; return vi.fn(); },
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      readCv: vi.fn(),
+      writeCv: vi.fn(),
+    };
+    TestBed.overrideProvider(DCC_TRANSPORT, { useValue: transport });
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    await app.session.connect('test');
+    app.updateTargetAddress(3);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const button = element.querySelector<HTMLButtonElement>('.confirm-address-button');
+    expect(button?.disabled).toBe(false);
+    button?.click();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(element.querySelector<HTMLInputElement>('.address-field input')?.disabled).toBe(true);
+    });
+    expect(app.canRead()).toBe(false);
+    incoming({ direction: 'incoming', message: '<r LOCOID 3>' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.querySelector('.address-confirmation-status')?.textContent).toContain('Address 3 confirmed');
+    app.updateTargetAddress(7);
+    fixture.detectChanges();
+    expect(element.querySelector('.address-confirmation-status')).toBeNull();
+    const retry = app.confirmAddress();
+    incoming({ direction: 'incoming', message: '<r LOCOID 3>' });
+    await retry;
+    fixture.detectChanges();
+    expect(element.querySelector('[role="alert"]')?.textContent).toContain('Address mismatch');
   });
 
   it('persists the selected serial port and restores it without reconnecting', async () => {

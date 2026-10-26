@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { SerialPort } = require('serialport');
@@ -100,7 +100,7 @@ ipcMain.handle('cabscribe:serial:connect', async (_event, portId) => {
       serviceModeWrite: false,
     },
     message:
-      'The serial port is open at 115200 baud. DCC-EX readiness and Service Mode commands are not enabled yet.',
+      'The serial port is open at 115200 baud. Locomotive address confirmation is available; CV reading and writing are not enabled yet.',
   };
 });
 
@@ -132,6 +132,29 @@ ipcMain.handle('cabscribe:dcc:read-cv', async (_event, address, cv) => {
   throw new Error(
     'DCC-EX Service Mode CV reading is not implemented; no command was sent.'
   );
+});
+
+ipcMain.handle('cabscribe:dcc:read-address', async () => {
+  const port = activePort;
+  if (!port?.isOpen) {
+    throw new Error('Connect to a command station before confirming an address.');
+  }
+  await new Promise((resolve, reject) => {
+    port.write('<R LOCOID>', (error) => {
+      if (error) {
+        reject(new Error(`Address read could not be sent: ${error.message}`));
+        return;
+      }
+      port.drain((drainError) => {
+        if (drainError) {
+          reject(new Error(`Address read transmission failed: ${drainError.message}`));
+        } else {
+          reportSerialMessage('outgoing', '<R LOCOID>');
+          resolve();
+        }
+      });
+    });
+  });
 });
 
 ipcMain.handle('cabscribe:dcc:write-cv', async (_event, address, cv, value) => {
@@ -180,7 +203,14 @@ function createWindow() {
 
   const allowedFileUrl = pathToFileURL(webAppPath).href;
 
-  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url === 'https://github.com/aKnownGlitch/cabscribe') {
+      void shell.openExternal(url).catch((error) => {
+        dialog.showErrorBox('Could not open GitHub', error.message);
+      });
+    }
+    return { action: 'deny' };
+  });
   mainWindow.webContents.on('will-navigate', (event, url) => {
     if (url !== allowedFileUrl) {
       event.preventDefault();

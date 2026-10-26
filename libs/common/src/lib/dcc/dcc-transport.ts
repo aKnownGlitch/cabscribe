@@ -40,6 +40,7 @@ export class DccTransportError extends Error {
 }
 
 export interface DccTransport {
+  requestLocomotiveAddress?(): Promise<void>;
   requestPort?(): Promise<SerialPortInfo | null>;
   listPorts(): Promise<SerialPortInfo[]>;
   connect(portId: string): Promise<DccConnectionInfo>;

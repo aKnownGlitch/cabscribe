@@ -46,6 +46,9 @@
         <div>
           <h2 id="target-address-title">Programming Target Address</h2>
         </div>
+        <p id="address-confirmation-help" class="confirmation-help">
+          Confirm reads a locomotive on the programming track. Accessory confirmation is not supported.
+        </p>
       </div>
       <mat-form-field appearance="outline" class="address-field">
         <mat-label>Locomotive or Accessory ID</mat-label>
@@ -56,11 +59,32 @@
           min="1"
           step="1"
           [ngModel]="targetAddress()"
-          (ngModelChange)="targetAddress.set($event)"
+          (ngModelChange)="updateTargetAddress($event)"
+          [disabled]="confirmingAddress()"
           [ngModelOptions]="{ standalone: true }"
           placeholder="Enter an address"
         />
       </mat-form-field>
+      <div class="operation-actions">
+        <button
+          mat-flat-button
+          type="button"
+          class="read-button confirm-address-button"
+          (click)="confirmAddress()"
+          [disabled]="!canConfirmAddress()"
+          aria-describedby="address-confirmation-help"
+        >
+          {{ confirmingAddress() ? 'Confirming…' : 'Confirm' }}
+        </button>
+      </div>
+      @let confirmation = session.addressConfirmation();
+      @if (confirmation.status === 'confirming') {
+        <p class="address-confirmation-status" role="status">Checking decoder address…</p>
+      } @else if (confirmation.status === 'confirmed') {
+        <p class="address-confirmation-status" role="status">{{ confirmation.message }}</p>
+      } @else if (confirmation.status === 'error') {
+        <p class="address-confirmation-status error" role="alert">{{ confirmation.message }}</p>
+      }
     </section>
 
     <section class="operation-card" aria-labelledby="cv-editor-title">
@@ -130,7 +154,7 @@
 
       <div class="operation-actions">
         <button
-          mat-stroked-button
+          mat-flat-button
           type="button"
           class="operation-button read-button"
           (click)="read()"
@@ -167,7 +191,6 @@
     <section class="debug-panel" aria-labelledby="debug-title">
       <div class="debug-heading">
         <div>
-          <p class="card-kicker">SERIAL MONITOR</p>
           <h2 id="debug-title">Debug output</h2>
         </div>
         @if (
@@ -199,7 +222,20 @@
 
   <footer class="app-footer">
     <span class="footer-brand"><strong>CAB</strong>SCRIBE</span>
-    <span>Local connection · No cloud account required</span>
+    <span>Copyright &copy; 2026 Larry Weinheimer</span>
+    <a
+      mat-icon-button
+      class="github-button"
+      href="https://github.com/aKnownGlitch/cabscribe"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="View CABSCRIBE on GitHub (opens in a new browser tab)"
+      title="View CABSCRIBE on GitHub"
+    >
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+        <path d="M12 .75a11.25 11.25 0 0 0-3.558 21.923c.563.104.768-.244.768-.542 0-.267-.01-.975-.015-1.913-3.13.68-3.791-1.51-3.791-1.51-.512-1.3-1.25-1.646-1.25-1.646-1.022-.699.077-.685.077-.685 1.13.08 1.724 1.16 1.724 1.16 1.005 1.723 2.637 1.225 3.279.937.102-.728.393-1.225.715-1.507-2.499-.284-5.126-1.25-5.126-5.564 0-1.229.439-2.233 1.16-3.02-.116-.284-.503-1.428.11-2.977 0 0 .945-.303 3.094 1.154A10.78 10.78 0 0 1 12 6.18c.956.005 1.918.13 2.817.38 2.148-1.457 3.09-1.154 3.09-1.154.616 1.55.228 2.693.112 2.977.722.787 1.159 1.791 1.159 3.02 0 4.326-2.631 5.277-5.138 5.556.404.35.765 1.043.765 2.1 0 1.516-.014 2.74-.014 3.112 0 .3.203.65.774.54A11.251 11.251 0 0 0 12 .75Z" />
+      </svg>
+    </a>
   </footer>
 </div>
 

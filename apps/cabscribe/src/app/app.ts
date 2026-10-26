@@ -77,7 +77,15 @@ export class App implements OnInit {
   readonly isConnected = computed(
     () => this.session.connection().status === 'connected'
   );
-  readonly operationInProgress = computed(() =>
+  readonly confirmingAddress = computed(
+    () => this.session.addressConfirmation().status === 'confirming'
+  );
+  readonly canConfirmAddress = computed(() => {
+    const address = this.parseInteger(this.targetAddress(), 1);
+    return this.isConnected() && this.session.canConfirmAddress &&
+      !this.operationInProgress() && address !== null && address <= 10293;
+  });
+  readonly operationInProgress = computed(() => this.confirmingAddress() ||
     ['reading', 'writing', 'verifying'].includes(
       this.session.operation().kind
     )
@@ -134,6 +142,18 @@ export class App implements OnInit {
 
   async refreshPorts(): Promise<void> {
     await this.session.discoverPorts();
+  }
+
+  updateTargetAddress(value: string | number | null): void {
+    this.targetAddress.set(value === null ? '' : String(value));
+    this.session.addressConfirmation.set({ status: 'idle' });
+  }
+
+  async confirmAddress(): Promise<void> {
+    const address = this.parseInteger(this.targetAddress(), 1);
+    if (address !== null) {
+      await this.session.confirmAddress(address);
+    }
   }
 
   selectCvDefinition(address: number | null): void {

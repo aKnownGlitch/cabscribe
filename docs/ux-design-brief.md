@@ -92,6 +92,8 @@ one primary application screen rather than separate pages.
 - Programming context identified as **Service Mode**.
 - One shared single-CV form with CV address and Value fields and **Read** and
   **Write** actions.
+- Use a filled primary-color **Read** button and a filled warning-red **Write**
+  button, both with white text.
 - Include an optional **CV function** dropdown that sets the same CV address
   as manual entry. Match known functions when an address is typed; retain
   manual entry for addresses outside the catalog.
@@ -105,6 +107,20 @@ one primary application screen rather than separate pages.
   Locomotive or Accessory ID is the programming target and applies to both
   Read and Write.
 - A successful read places the returned value in the editable Value field.
+- Add **Confirm** to the Programming Target Address section. With a connected
+  serial port and a valid locomotive address, send `<R LOCOID>` and compare
+  `<r LOCOID address>` with the entered ID. This reads the actual locomotive
+  address, not its consist address; it does not change the address.
+- Show checking, confirmed, and explicit mismatch/read-error/timeout states.
+  Clear confirmation when the address changes or the connection is replaced;
+  a lost connection must not retain confirmed status. Block conflicting
+  operations while checking. After a timeout, transmission failure, or invalid/failed
+  read, require reconnection before retrying to avoid accepting delayed replies.
+- Confirmation requires a locomotive alone on the programming track with decoder
+  acknowledgment support. Accessory address confirmation is unsupported and
+  must be identified as such. Confirmation does not enable CV Read/Write.
+- Place the confirmation guidance at the top right of the Programming Target
+  Address section, alongside its heading; allow wrapping at narrow widths.
 - Writing uses the current CV address and edited Value field, then requires
   confirmation before sending.
 - Loading/progress feedback that prevents conflicting operations while a
@@ -120,6 +136,7 @@ one primary application screen rather than separate pages.
 
 ### D. Serial debug output
 
+- Use **Debug output** as the heading; omit the **SERIAL MONITOR** kicker.
 - Replace the latest-operation result panel with a read-only serial log.
 - Provide an accessible toggle switch to show or hide the complete debug
   section; show it by default.
@@ -175,6 +192,10 @@ implementation and supported distribution targets are decided.
 
 ## 6. Visual and accessibility direction
 
+- Include **Copyright © 2026 Larry Weinheimer** in the footer alongside the
+  CABSCRIBE brand and an icon-only **GitHub** button with an accessible label linking to
+  [the project repository](https://github.com/aKnownGlitch/cabscribe).
+  Replace the local-connection/cloud-account footer text with this button.
 - Prioritize glanceable connection and operation status. Do not use color alone
   to communicate success, warning, failure, or an unknown outcome.
 - Provide clear focus states, keyboard navigation, logical tab order, and

@@ -8,6 +8,7 @@ import {
 import { BrowserSerial, WebSerialDccTransport } from './web-serial-dcc.transport';
 
 export interface CabscribeDesktopBridge {
+  requestLocomotiveAddress(): Promise<void>;
   listPorts(): Promise<SerialPortInfo[]>;
   connect(portId: string): Promise<DccConnectionInfo>;
   disconnect(): Promise<void>;
@@ -25,6 +26,10 @@ declare global {
 
 export class ElectronDccTransport implements DccTransport {
   constructor(private readonly bridge: CabscribeDesktopBridge) {}
+
+  requestLocomotiveAddress(): Promise<void> {
+    return this.bridge.requestLocomotiveAddress();
+  }
 
   listPorts(): Promise<SerialPortInfo[]> {
     return this.bridge.listPorts();

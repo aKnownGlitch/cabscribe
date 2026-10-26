@@ -334,6 +334,7 @@ h1 {
 .card-heading {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 13px;
 }
@@ -351,6 +352,27 @@ h1 {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
+}
+
+.confirmation-help,
+.address-confirmation-status {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #536873;
+}
+
+.confirmation-help {
+  flex: 1 1 300px;
+  margin: 0 0 0 auto;
+  text-align: right;
+}
+
+.address-confirmation-status {
+  color: #176b68;
+}
+
+.address-confirmation-status.error {
+  color: #b3261e;
 }
 
 .cv-function-field {
@@ -375,17 +397,18 @@ h1 {
 }
 
 .write-button {
-  background: #273f4b !important;
+  background: #b3261e !important;
   color: #fff !important;
 }
 
 .read-button {
-  border-color: #cbd8dc !important;
-  color: #31515d !important;
+  background: #273f4b !important;
+  color: #fff !important;
 }
 
 .app-footer {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   width: min(100% - 64px, 1200px);
@@ -393,6 +416,10 @@ h1 {
   padding: 18px 0 22px;
   color: #819099;
   font-size: 11px;
+}
+
+.github-button {
+  color: #273f4b !important;
 }
 
 .footer-brand {

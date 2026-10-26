@@ -8,7 +8,9 @@ import { createDccTransport, ElectronDccTransport } from './electron-dcc.transpo
 describe('WebSerialDccTransport', () => {
   function createTransport() {
     let controller!: ReadableStreamDefaultController<Uint8Array>;
+    const write = vi.fn().mockResolvedValue(undefined);
     const port: BrowserSerialPort = {
+      writable: new WritableStream<Uint8Array>({ write }),
       readable: new ReadableStream<Uint8Array>({
         start: (streamController) => { controller = streamController; },
       }),
@@ -20,11 +22,39 @@ describe('WebSerialDccTransport', () => {
       getPorts: vi.fn().mockResolvedValue([port]),
       requestPort: vi.fn().mockResolvedValue(port),
     };
-    return { port, serial, controller, transport: new WebSerialDccTransport(serial) };
+    return { port, serial, controller, write, transport: new WebSerialDccTransport(serial) };
   }
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it('sends only the address read command and logs it after successful transmission', async () => {
+    const { transport, port, write } = createTransport();
+    const messages: SerialLogMessage[] = [];
+    transport.onSerialMessage((message) => messages.push(message));
+    await expect(transport.requestLocomotiveAddress()).rejects.toMatchObject({ code: 'not-connected' });
+    const [info] = await transport.listPorts();
+    await transport.connect(info.id);
+    await transport.requestLocomotiveAddress();
+    expect(write).toHaveBeenCalledOnce();
+    expect(write.mock.calls[0][0]).toEqual(new TextEncoder().encode('<R LOCOID>'));
+    expect(messages).toEqual([{ direction: 'outgoing', message: '<R LOCOID>' }]);
+    expect(port.writable?.locked).toBe(false);
+    await transport.disconnect();
+  });
+
+  it('surfaces write failure without producing a successful outgoing log', async () => {
+    const { transport, port, write } = createTransport();
+    const messages: SerialLogMessage[] = [];
+    transport.onSerialMessage((message) => messages.push(message));
+    write.mockRejectedValueOnce(new Error('Write failed'));
+    const [info] = await transport.listPorts();
+    await transport.connect(info.id);
+    await expect(transport.requestLocomotiveAddress()).rejects.toThrow('Write failed');
+    expect(messages).toEqual([]);
+    expect(port.writable?.locked).toBe(false);
+    await transport.disconnect();
   });
 
   it('lists authorized ports and retains their identity within a session', async () => {
@@ -117,5 +147,19 @@ describe('WebSerialDccTransport', () => {
     };
     vi.stubGlobal('cabscribeDesktop', bridge);
     expect(createDccTransport()).toBeInstanceOf(ElectronDccTransport);
+  });
+
+  it('routes address confirmation through the fixed Electron bridge method', async () => {
+    const bridge = {
+      requestLocomotiveAddress: vi.fn().mockResolvedValue(undefined),
+      listPorts: vi.fn(), connect: vi.fn(), disconnect: vi.fn(),
+      readCv: vi.fn(), writeCv: vi.fn(), onDisconnected: vi.fn(),
+      onSerialMessage: vi.fn(),
+    };
+    const transport = new ElectronDccTransport(bridge);
+    await transport.requestLocomotiveAddress();
+    expect(bridge.requestLocomotiveAddress).toHaveBeenCalledOnce();
+    expect(bridge.readCv).not.toHaveBeenCalled();
+    expect(bridge.writeCv).not.toHaveBeenCalled();
   });
 });

@@ -36,6 +36,135 @@ describe('DccSessionService', () => {
     return { session, transport };
   }
 
+  async function createConfirmableSession() {
+    let publish!: (message: SerialLogMessage) => void;
+    let disconnect!: (message: string) => void;
+    const result = await createSession({
+      requestLocomotiveAddress: vi.fn().mockResolvedValue(undefined),
+      onSerialMessage: (listener) => {
+        publish = listener;
+        return vi.fn();
+      },
+      onDisconnected: (listener) => {
+        disconnect = listener;
+        return vi.fn();
+      },
+    });
+    return {
+      ...result,
+      incoming: (message: string) => publish({ direction: 'incoming', message }),
+      disconnect,
+    };
+  }
+
+  it('confirms an actual locomotive address from fragmented frames and ignores other traffic', async () => {
+    const { session, transport, incoming } = await createConfirmableSession();
+    const confirming = session.confirmAddress(1234);
+    expect(session.addressConfirmation()).toEqual({ status: 'confirming', address: 1234 });
+    incoming('<iDCCEX><r 3><v 1 3><r LO');
+    expect(session.addressConfirmation().status).toBe('confirming');
+    incoming('COID 1234>');
+    await confirming;
+    expect(transport.requestLocomotiveAddress).toHaveBeenCalledOnce();
+    expect(session.addressConfirmation()).toMatchObject({ status: 'confirmed', address: 1234 });
+    expect(session.operation()).toEqual({ kind: 'idle' });
+  });
+
+  it('reports the actual address when it does not match the target', async () => {
+    const { session, incoming } = await createConfirmableSession();
+    const confirming = session.confirmAddress(3);
+    incoming('<r LOCOID 7>');
+    await confirming;
+    expect(session.addressConfirmation()).toEqual({
+      status: 'error', address: 3,
+      message: 'Address mismatch: entered 3, decoder reported 7.',
+    });
+  });
+
+  it.each(['-1', '0', '10294', 'invalid', '3 extra'])(
+    'rejects failed or invalid address responses: %s', async (response) => {
+      const { session, incoming } = await createConfirmableSession();
+      const confirming = session.confirmAddress(3);
+      incoming(`<r LOCOID ${response}>`);
+      await confirming;
+      expect(session.addressConfirmation().status).toBe('error');
+    }
+  );
+
+  it('times out at 15 seconds and prevents a delayed reply from confirming a retry', async () => {
+    vi.useFakeTimers();
+    try {
+      const { session, transport, incoming } = await createConfirmableSession();
+      const confirming = session.confirmAddress(3);
+      await vi.advanceTimersByTimeAsync(14999);
+      expect(session.addressConfirmation().status).toBe('confirming');
+      await vi.advanceTimersByTimeAsync(1);
+      await confirming;
+      expect(session.addressConfirmation()).toMatchObject({
+        status: 'error', message: expect.stringContaining('timed out'),
+      });
+      incoming('<r LOCOID 3>');
+      await session.confirmAddress(3);
+      expect(transport.requestLocomotiveAddress).toHaveBeenCalledOnce();
+      expect(session.addressConfirmation()).toMatchObject({
+        status: 'error', message: expect.stringContaining('Reconnect'),
+      });
+      await session.disconnect();
+      await session.connect(port.id);
+      const retry = session.confirmAddress(3);
+      incoming('<r LOCOID 3>');
+      await retry;
+      expect(session.addressConfirmation().status).toBe('confirmed');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reports transmission and disconnect failures, invalidates confirmed status on removal', async () => {
+    const { session, transport, incoming, disconnect } = await createConfirmableSession();
+    if (!transport.requestLocomotiveAddress) {
+      throw new Error('Address read transport is required for this test.');
+    }
+    vi.mocked(transport.requestLocomotiveAddress).mockRejectedValueOnce(new Error('Send failed.'));
+    await session.confirmAddress(3);
+    expect(session.addressConfirmation()).toMatchObject({ status: 'error', message: 'Send failed.' });
+    await session.disconnect();
+    await session.connect(port.id);
+    const confirming = session.confirmAddress(3);
+    disconnect('Device removed.');
+    await confirming;
+    expect(session.addressConfirmation()).toMatchObject({ status: 'error', message: 'Device removed.' });
+    await session.connect(port.id);
+    const retry = session.confirmAddress(3);
+    incoming('<r LOCOID 3>');
+    await retry;
+    disconnect('Device removed.');
+    expect(session.addressConfirmation()).toMatchObject({ status: 'error', message: 'Device removed.' });
+  });
+
+  it('blocks invalid addresses, concurrent confirmation and CV operations without sending commands', async () => {
+    const { session, transport, incoming } = await createConfirmableSession();
+    for (const address of [0, 1.5, 10294]) {
+      await session.confirmAddress(address);
+      expect(session.addressConfirmation().status).toBe('error');
+    }
+    expect(transport.requestLocomotiveAddress).not.toHaveBeenCalled();
+    const confirming = session.confirmAddress(3);
+    await session.confirmAddress(4);
+    await session.readCv(3, 1);
+    await session.writeCv(3, 1, 7);
+    expect(transport.readCv).not.toHaveBeenCalled();
+    expect(transport.writeCv).not.toHaveBeenCalled();
+    expect(transport.requestLocomotiveAddress).toHaveBeenCalledOnce();
+    incoming('<r LOCOID 3>');
+    await confirming;
+    await session.disconnect();
+    await session.confirmAddress(3);
+    expect(session.addressConfirmation()).toMatchObject({
+      status: 'error', message: expect.stringContaining('Connect'),
+    });
+  });
+
   it('reports a read result for the requested CV', async () => {
     const { session } = await createSession();
 

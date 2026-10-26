@@ -86,6 +86,17 @@ Browser and Electron builds currently have the same CV limitation: DCC-EX CV
 commands are not implemented, so Read and Write remain disabled. Browser serial
 behavior is covered by mocked API tests; physical-device testing is still needed.
 
+**Confirm** in Programming Target Address sends `<R LOCOID>` and compares the
+returned actual locomotive address with the entered ID. Place one locomotive
+alone on the programming track; decoder acknowledgment is required. This checks
+command-station and decoder communication without writing CVs or enabling Read
+and Write. Accessory address confirmation is unsupported. A mismatch is shown
+explicitly; failed reads, invalid replies, transmission failures, or a 15-second
+timeout show errors and require reconnection before retrying. Editing the address
+clears the result. This command requires firmware supporting
+[`<R LOCOID>`](https://dcc-ex.com/reference/software/command-summary-consolidated.html#r-locoid-read-dcc-decoder-cab-address);
+hardware verification remains outstanding. Traffic appears in the serial debug log.
+
 ### Build and test
 
 ```sh

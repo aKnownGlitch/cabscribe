@@ -9,6 +9,7 @@ import {
 // Web Serial is not included in TypeScript's standard DOM declarations.
 export interface BrowserSerialPort {
   readonly readable: ReadableStream<Uint8Array> | null;
+  readonly writable?: WritableStream<Uint8Array> | null;
   getInfo(): { usbVendorId?: number; usbProductId?: number };
   open(options: { baudRate: number }): Promise<void>;
   close(): Promise<void>;
@@ -72,7 +73,7 @@ export class WebSerialDccTransport implements DccTransport {
     return {
       capabilities: { serviceModeRead: false, serviceModeWrite: false },
       message:
-        'The serial port is open at 115200 baud. DCC-EX readiness and Service Mode commands are not enabled yet.',
+        'The serial port is open at 115200 baud. Locomotive address confirmation is available; CV reading and writing are not enabled yet.',
     };
   }
 
@@ -89,6 +90,24 @@ export class WebSerialDccTransport implements DccTransport {
       }
     } catch (error) {
       throw this.connectionError(error);
+    }
+  }
+
+  async requestLocomotiveAddress(): Promise<void> {
+    const port = this.activePort;
+    if (!port?.writable || this.closing) {
+      throw new DccTransportError('not-connected', 'The serial port is not writable.');
+    }
+    const writer = port.writable.getWriter();
+    try {
+      await writer.write(new TextEncoder().encode('<R LOCOID>'));
+      for (const listener of this.serialListeners) {
+        listener({ direction: 'outgoing', message: '<R LOCOID>' });
+      }
+    } catch (error) {
+      throw this.connectionError(error);
+    } finally {
+      writer.releaseLock();
     }
   }
 

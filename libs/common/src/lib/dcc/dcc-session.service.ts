@@ -1,4 +1,4 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import {
   DCC_TRANSPORT,
   DccTransportError,
@@ -7,6 +7,12 @@ import {
 } from './dcc-transport';
 
 const MAX_SERIAL_LOG_LINES = 1000;
+const ADDRESS_CONFIRMATION_TIMEOUT_MS = 15000;
+
+export type AddressConfirmationState =
+  | { status: 'idle' }
+  | { status: 'confirming'; address: number }
+  | { status: 'confirmed' | 'error'; address: number; message: string };
 
 export type ConnectionState =
   | { status: 'scanning' | 'connecting' }
@@ -71,16 +77,129 @@ export class DccSessionService {
   });
   readonly operation = signal<OperationState>({ kind: 'idle' });
   readonly canRequestPort = typeof this.transport.requestPort === 'function';
+  readonly canConfirmAddress =
+    typeof this.transport.requestLocomotiveAddress === 'function' &&
+    typeof this.transport.onSerialMessage === 'function';
+  readonly addressConfirmation = signal<AddressConfirmationState>({ status: 'idle' });
+  private addressResponse?: {
+    resolve: (address: number) => void;
+    reject: (error: Error) => void;
+  };
+  private addressFrame = '';
+  private confirmationNeedsReconnect = false;
 
   constructor() {
-    this.transport.onDisconnected?.((message) =>
+    const removeDisconnectListener = this.transport.onDisconnected?.((message) =>
       this.handleConnectionLost(message)
     );
-    this.transport.onSerialMessage?.((message) => {
+    const removeSerialListener = this.transport.onSerialMessage?.((message) => {
       this.serialLog.update((entries) =>
         [...entries, message].slice(-MAX_SERIAL_LOG_LINES)
       );
+      if (message.direction === 'incoming') {
+        this.receiveAddressResponse(message.message);
+      }
     });
+    inject(DestroyRef).onDestroy(() => {
+      removeDisconnectListener?.();
+      removeSerialListener?.();
+      this.addressResponse?.reject(new Error('Address confirmation cancelled.'));
+    });
+  }
+
+  async confirmAddress(address: number): Promise<void> {
+    if (this.addressConfirmation().status === 'confirming') {
+      return;
+    }
+    const fail = (message: string) =>
+      this.addressConfirmation.set({ status: 'error', address, message });
+    if (!Number.isSafeInteger(address) || address < 1 || address > 10293) {
+      fail('Enter a locomotive address from 1 to 10293.');
+      return;
+    }
+    if (this.connection().status !== 'connected') {
+      fail('Connect to a command station before confirming an address.');
+      return;
+    }
+    if (!this.transport.requestLocomotiveAddress || !this.canConfirmAddress) {
+      fail('Address confirmation is not available on this connection.');
+      return;
+    }
+    if (['reading', 'writing', 'verifying'].includes(this.operation().kind)) {
+      fail('Wait for the current CV operation to finish.');
+      return;
+    }
+    if (this.confirmationNeedsReconnect) {
+      fail('Reconnect before retrying confirmation to avoid using a delayed response.');
+      return;
+    }
+    this.addressFrame = '';
+    this.addressConfirmation.set({ status: 'confirming', address });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const response = new Promise<number>((resolve, reject) => {
+      this.addressResponse = { resolve, reject };
+      timer = setTimeout(() => reject(new DccTransportError(
+        'timeout', 'Address confirmation timed out. Check the programming track and reconnect before retrying.'
+      )), ADDRESS_CONFIRMATION_TIMEOUT_MS);
+    });
+    try {
+      // Register the response listener before sending; replies may arrive immediately.
+      const [, actualAddress] = await Promise.all([
+        this.transport.requestLocomotiveAddress(),
+        response,
+      ]);
+      if (actualAddress !== address) {
+        fail(`Address mismatch: entered ${address}, decoder reported ${actualAddress}.`);
+      } else {
+        this.addressConfirmation.set({
+          status: 'confirmed', address,
+          message: `Address ${address} confirmed. Command station and decoder responded.`,
+        });
+      }
+    } catch (error) {
+      this.confirmationNeedsReconnect = true;
+      fail(this.errorMessage(error, 'Address confirmation failed. Reconnect before retrying.'));
+    } finally {
+      clearTimeout(timer);
+      this.addressResponse = undefined;
+      this.addressFrame = '';
+    }
+  }
+
+  private receiveAddressResponse(chunk: string): void {
+    if (!this.addressResponse) {
+      return;
+    }
+    for (const character of chunk) {
+      if (character === '<') {
+        this.addressFrame = '<';
+      } else if (this.addressFrame) {
+        this.addressFrame += character;
+        if (character === '>') {
+          const frame = this.addressFrame;
+          this.addressFrame = '';
+          if (!/^<r\s+LOCOID(?:\s|>)/.test(frame)) {
+            continue;
+          }
+          const match = /^<r\s+LOCOID\s+(-?\d+)\s*>$/.exec(frame);
+          const address = match ? Number(match[1]) : NaN;
+          if (!Number.isSafeInteger(address) || address < 1 || address > 10293) {
+            this.addressResponse.reject(new DccTransportError(
+              'invalid-response',
+              address === -1
+                ? 'The decoder did not acknowledge the address read. Check the locomotive and programming track.'
+                : 'The command station returned an invalid locomotive address.',
+            ));
+          } else {
+            this.addressResponse.resolve(address);
+          }
+          return;
+        }
+        if (this.addressFrame.length > 128) {
+          this.addressFrame = '';
+        }
+      }
+    }
   }
 
   async discoverPorts(): Promise<void> {
@@ -129,6 +248,8 @@ export class DccSessionService {
     this.connection.set({ status: 'connecting' });
     try {
       const connectionInfo = await this.transport.connect(portId);
+      this.confirmationNeedsReconnect = false;
+      this.addressConfirmation.set({ status: 'idle' });
       this.connection.set({
         status: 'connected',
         port,
@@ -140,16 +261,24 @@ export class DccSessionService {
   }
 
   async disconnect(): Promise<void> {
+    this.addressResponse?.reject(new Error('Disconnected during address confirmation.'));
     try {
       await this.transport.disconnect();
       this.operation.set({ kind: 'idle' });
       this.connection.set({ status: 'disconnected' });
+      if (this.addressConfirmation().status !== 'confirming') {
+        this.addressConfirmation.set({ status: 'idle' });
+      }
     } catch (error) {
       this.connection.set(this.connectionFailure(error));
     }
   }
 
   async readCv(address: number, cv: number): Promise<void> {
+    if (this.addressConfirmation().status === 'confirming') {
+      this.operation.set({ kind: 'read-failure', address, cv, message: 'Wait for address confirmation to finish.' });
+      return;
+    }
     const connection = this.connection();
     if (connection.status !== 'connected') {
       this.operation.set({
@@ -185,6 +314,10 @@ export class DccSessionService {
   }
 
   async writeCv(address: number, cv: number, value: number): Promise<void> {
+    if (this.addressConfirmation().status === 'confirming') {
+      this.operation.set({ kind: 'write-failure', address, cv, value, message: 'Wait for address confirmation to finish.' });
+      return;
+    }
     const connection = this.connection();
     if (connection.status !== 'connected') {
       this.operation.set({
@@ -266,6 +399,11 @@ export class DccSessionService {
   }
 
   private handleConnectionLost(message: string): void {
+    this.addressResponse?.reject(new Error(message));
+    const confirmation = this.addressConfirmation();
+    if (confirmation.status === 'confirmed') {
+      this.addressConfirmation.set({ status: 'error', address: confirmation.address, message });
+    }
     const currentOperation = this.operation();
     if (currentOperation.kind === 'writing' || currentOperation.kind === 'verifying') {
       this.operation.set({
