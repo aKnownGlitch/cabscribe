@@ -448,6 +448,22 @@ h1 {
   margin-bottom: 10px;
 }
 
+.welcome-logo {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-bottom: 16px;
+  border-radius: 8px;
+}
+
+.connection-dialog h2 {
+  font-size: 24px;
+}
+
+.connection-dialog .dialog-actions button {
+  font-size: 16px;
+}
+
 .dialog-status {
   margin: 18px 0 0;
   padding: 11px 13px;
@@ -482,6 +498,21 @@ h1 {
   color: #697983;
   font-size: 13px;
   line-height: 1.6;
+}
+
+.connection-dialog .dialog-content > p:not(.card-kicker) {
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.connection-dialog .dialog-content > p.welcome-disclaimer {
+  font-size: 12px;
+}
+
+.welcome-divider {
+  margin: 28px 0;
+  border: 0;
+  border-top: 3px solid #dce4e7;
 }
 
 .change-summary {

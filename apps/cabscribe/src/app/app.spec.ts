@@ -7,7 +7,17 @@ import {
 } from 'common';
 
 describe('App', () => {
+  const originalShowModal = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
+  const originalClose = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'close');
   beforeEach(async () => {
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+      configurable: true,
+      value: vi.fn(function (this: HTMLDialogElement) { this.open = true; }),
+    });
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', {
+      configurable: true,
+      value: vi.fn(function (this: HTMLDialogElement) { this.open = false; }),
+    });
     window.localStorage.removeItem('cabscribe.selectedSerialPort');
     await TestBed.configureTestingModule({
       imports: [App],
@@ -19,6 +29,61 @@ describe('App', () => {
         },
       ],
     }).compileComponents();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    for (const [name, descriptor] of [
+      ['showModal', originalShowModal],
+      ['close', originalClose],
+    ] as const) {
+      if (descriptor) {
+        Object.defineProperty(HTMLDialogElement.prototype, name, descriptor);
+      } else {
+        Reflect.deleteProperty(HTMLDialogElement.prototype, name);
+      }
+    }
+  });
+
+  it('requires a successful connection before dismissal and reopens after connection loss', async () => {
+    const transport = {
+      listPorts: vi.fn().mockResolvedValue([{ id: 'test', label: 'DCC-EX' }]),
+      connect: vi.fn()
+        .mockRejectedValueOnce(new Error('Port busy'))
+        .mockResolvedValue({ capabilities: { serviceModeRead: false, serviceModeWrite: false } }),
+      disconnect: vi.fn().mockResolvedValue(undefined), readCv: vi.fn(), writeCv: vi.fn(),
+    };
+    TestBed.overrideProvider(DCC_TRANSPORT, { useValue: transport });
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    const element = fixture.nativeElement as HTMLElement;
+    const dialog = element.querySelector<HTMLDialogElement>('#connectionDialog');
+    expect(dialog?.open).toBe(true);
+    expect(element.querySelector('.continue-button')).toBeNull();
+    app.closeConnectionDialog();
+    expect(dialog?.open).toBe(true);
+    const cancel = new Event('cancel', { cancelable: true });
+    dialog?.dispatchEvent(cancel);
+    expect(cancel.defaultPrevented).toBe(true);
+    app.selectPort('missing');
+    app.closeConnectionDialog();
+    expect(dialog?.open).toBe(true);
+    app.selectPort('test');
+    fixture.detectChanges();
+    app.closeConnectionDialog();
+    expect(dialog?.open).toBe(true);
+    await app.connect();
+    expect(dialog?.open).toBe(true);
+    expect(app.isConnected()).toBe(false);
+    await app.connect();
+    expect(dialog?.open).toBe(false);
+    const allowedCancel = new Event('cancel', { cancelable: true });
+    dialog?.dispatchEvent(allowedCancel);
+    expect(allowedCancel.defaultPrevented).toBe(false);
+    app.session.connection.set({ status: 'error', message: 'Device removed' });
+    await fixture.whenStable();
+    expect(dialog?.open).toBe(true);
   });
 
   it('explains that serial communication is not configured', async () => {
@@ -35,6 +100,14 @@ describe('App', () => {
       )?.getAttribute('aria-label')
     ).toBe('Serial connection settings');
     expect(compiled.querySelector('#connectionDialog')).not.toBeNull();
+    expect(compiled.querySelector('#connection-dialog-title')?.textContent).toBe('Serial connection');
+    const welcomeLogo = compiled.querySelector<HTMLImageElement>('#connectionDialog .welcome-logo');
+    expect(welcomeLogo?.getAttribute('src')).toBe('cabscribe-logo.png');
+    expect(welcomeLogo?.alt).toContain('CABSCRIBE');
+    expect(compiled.querySelector('.welcome-message')?.textContent).toContain('free, open-source');
+    expect(compiled.querySelector('.welcome-disclaimer')?.textContent).toContain('without warranty');
+    expect(compiled.querySelector('.welcome-disclaimer')?.textContent).toContain('not liable');
+    expect(compiled.textContent).not.toContain('HARDWARE CONNECTION');
     expect(compiled.textContent).toContain('Locomotive or Accessory ID');
     const debugOutput = compiled.querySelector<HTMLTextAreaElement>(
       '#serial-debug-output'
@@ -128,6 +201,7 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const app = fixture.componentInstance;
+    app.selectPort('test');
     await app.session.connect('test');
     app.updateTargetAddress(3);
     fixture.detectChanges();
@@ -152,6 +226,55 @@ describe('App', () => {
     await retry;
     fixture.detectChanges();
     expect(element.querySelector('[role="alert"]')?.textContent).toContain('Address mismatch');
+  });
+
+  it('disables programming controls until connected and preserves entered values', async () => {
+    const transport = {
+      listPorts: vi.fn().mockResolvedValue([{ id: 'test', label: 'DCC-EX' }]),
+      connect: vi.fn().mockResolvedValue({
+        capabilities: { serviceModeRead: false, serviceModeWrite: false },
+      }),
+      disconnect: vi.fn(),
+      readCv: vi.fn(),
+      writeCv: vi.fn(),
+    };
+    TestBed.overrideProvider(DCC_TRANSPORT, { useValue: transport });
+    window.localStorage.setItem('cabscribe.selectedSerialPort', 'missing');
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    const element = fixture.nativeElement as HTMLElement;
+    app.targetAddress.set('3');
+    app.cvAddress.set('29');
+    app.cvValue.set('77');
+    const expectInputsDisabled = async (disabled: boolean) => {
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        const inputs = element.querySelectorAll<HTMLInputElement>('.operation-card input');
+        expect(inputs).toHaveLength(3);
+        for (const input of inputs) {
+          expect(input.disabled).toBe(disabled);
+        }
+        expect(element.querySelector('.cv-function-field mat-select')?.getAttribute('aria-disabled'))
+          .toBe(String(disabled));
+      });
+    };
+    await expectInputsDisabled(true);
+    app.selectPort('test');
+    await expectInputsDisabled(true);
+    await app.connect();
+    await expectInputsDisabled(false);
+    for (const button of element.querySelectorAll<HTMLButtonElement>('.operation-card button')) {
+      expect(button.disabled).toBe(true);
+    }
+    app.selectPort('');
+    await app.session.disconnect();
+    await expectInputsDisabled(true);
+    expect(app.targetAddress()).toBe('3');
+    expect(app.cvAddress()).toBe('29');
+    expect(app.cvValue()).toBe('77');
+    expect(element.querySelector<HTMLButtonElement>('.connection-settings-button')?.disabled).toBe(false);
+    expect(element.querySelector<HTMLInputElement>('input[role="switch"]')?.disabled).toBe(false);
   });
 
   it('persists the selected serial port and restores it without reconnecting', async () => {

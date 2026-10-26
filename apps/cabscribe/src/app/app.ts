@@ -3,6 +3,7 @@ import {
   ElementRef,
   OnInit,
   ViewChild,
+  afterNextRender,
   computed,
   effect,
   inject,
@@ -54,6 +55,7 @@ export class App implements OnInit {
   });
   readonly cvValue = signal('');
   readonly selectedPortId = signal('');
+  private readonly viewReady = signal(false);
   readonly debugLogVisible = signal(true);
   readonly pendingWrite = signal<{
     address: number;
@@ -77,12 +79,15 @@ export class App implements OnInit {
   readonly isConnected = computed(
     () => this.session.connection().status === 'connected'
   );
+  readonly hasSelectedPort = computed(() =>
+    this.session.ports().some((port) => port.id === this.selectedPortId())
+  );
   readonly confirmingAddress = computed(
     () => this.session.addressConfirmation().status === 'confirming'
   );
   readonly canConfirmAddress = computed(() => {
     const address = this.parseInteger(this.targetAddress(), 1);
-    return this.isConnected() && this.session.canConfirmAddress &&
+    return this.hasSelectedPort() && this.isConnected() && this.session.canConfirmAddress &&
       !this.operationInProgress() && address !== null && address <= 10293;
   });
   readonly operationInProgress = computed(() => this.confirmingAddress() ||
@@ -102,6 +107,7 @@ export class App implements OnInit {
   readonly canRead = computed(
     () =>
       this.connectionHasReadCapability() &&
+      this.hasSelectedPort() &&
       !this.operationInProgress() &&
       this.parseInteger(this.targetAddress(), 1) !== null &&
       this.parseInteger(this.cvAddress(), 1) !== null
@@ -109,6 +115,7 @@ export class App implements OnInit {
   readonly canWrite = computed(
     () =>
       this.connectionHasWriteCapabilities() &&
+      this.hasSelectedPort() &&
       !this.operationInProgress() &&
       this.parseInteger(this.targetAddress(), 1) !== null &&
       this.parseInteger(this.cvAddress(), 1) !== null &&
@@ -122,6 +129,14 @@ export class App implements OnInit {
   private debugOutput?: ElementRef<HTMLTextAreaElement>;
 
   constructor() {
+    afterNextRender(() => {
+      this.viewReady.set(true);
+    });
+    effect(() => {
+      if (this.viewReady() && !this.isConnected()) {
+        this.openConnectionDialog();
+      }
+    });
     effect(() => {
       this.serialLogText();
       const visible = this.debugLogVisible();
@@ -137,7 +152,9 @@ export class App implements OnInit {
     if (storedPortId) {
       this.selectedPortId.set(storedPortId);
     }
-    void this.session.discoverPorts();
+    if (!this.isConnected()) {
+      void this.session.discoverPorts();
+    }
   }
 
   async refreshPorts(): Promise<void> {
@@ -178,11 +195,22 @@ export class App implements OnInit {
   }
 
   openConnectionDialog(): void {
-    this.connectionDialog?.nativeElement.showModal();
+    const dialog = this.connectionDialog?.nativeElement;
+    if (dialog && !dialog.open) {
+      dialog.showModal();
+    }
   }
 
   closeConnectionDialog(): void {
-    this.connectionDialog?.nativeElement.close();
+    if (this.isConnected()) {
+      this.connectionDialog?.nativeElement.close();
+    }
+  }
+
+  cancelConnectionDialog(event: Event): void {
+    if (!this.isConnected()) {
+      event.preventDefault();
+    }
   }
 
   async connect(): Promise<void> {

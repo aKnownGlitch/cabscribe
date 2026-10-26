@@ -60,7 +60,7 @@
           step="1"
           [ngModel]="targetAddress()"
           (ngModelChange)="updateTargetAddress($event)"
-          [disabled]="confirmingAddress()"
+          [disabled]="!isConnected() || confirmingAddress()"
           [ngModelOptions]="{ standalone: true }"
           placeholder="Enter an address"
         />
@@ -104,6 +104,7 @@
         <mat-label>CV function (optional)</mat-label>
         <mat-select
           [value]="selectedCvDefinition()"
+          [disabled]="!isConnected()"
           (selectionChange)="selectCvDefinition($event.value)"
         >
           <mat-select-trigger>{{ selectedCvLabel() }}</mat-select-trigger>
@@ -131,6 +132,7 @@
             min="1"
             step="1"
             [ngModel]="cvAddress()"
+            [disabled]="!isConnected()"
             (ngModelChange)="cvAddress.set($event)"
             [ngModelOptions]="{ standalone: true }"
             placeholder="Enter a CV address"
@@ -145,6 +147,7 @@
             min="0"
             step="1"
             [ngModel]="cvValue()"
+            [disabled]="!isConnected()"
             (ngModelChange)="cvValue.set($event)"
             [ngModelOptions]="{ standalone: true }"
             placeholder="Read or enter a value"
@@ -244,9 +247,26 @@
   id="connectionDialog"
   class="connection-dialog"
   aria-labelledby="connection-dialog-title"
+  (cancel)="cancelConnectionDialog($event)"
 >
   <div class="dialog-content">
-    <p class="card-kicker">HARDWARE CONNECTION</p>
+    <img
+      class="welcome-logo"
+      src="cabscribe-logo.png"
+      alt="CABSCRIBE — DCC Parameter Application"
+      width="1408"
+      height="768"
+    />
+    <p class="welcome-message">
+      Welcome to CABSCRIBE, a free, open-source application for DCC decoder
+      programming. Connect your command station to get started.
+    </p>
+    <p class="welcome-disclaimer">
+      Provided “as is” under the MIT License, without warranty. Use at your own
+      risk; the authors are not liable for damages arising from its use.
+      Check your setup before programming a decoder.
+    </p>
+    <hr class="welcome-divider" />
     <h2 id="connection-dialog-title">Serial connection</h2>
     <p>
       Choose the serial port for your DCC-EX command station.
@@ -257,8 +277,9 @@
     @if (session.canRequestPort) {
       <p>
         Use Choose device to authorize a serial port in this browser. Previously
-        granted devices appear in the list. Select the port again after reloading;
-        browsers do not expose a stable unique device ID. Use HTTPS or localhost.
+        granted devices appear in the list. After refreshing the page, select your
+        device again and click Connect. Your browser may remember its permission.
+        Use HTTPS or localhost.
       </p>
     }
 

@@ -69,7 +69,20 @@ one primary application screen rather than separate pages.
 
 ### A1. Serial connection settings dialog
 
+- Use **Serial connection** as the dialog heading; omit the **HARDWARE CONNECTION** kicker.
+
 - Open from the connection icon button beside the header status.
+- Also serve as the startup welcome screen: display the supplied CABSCRIBE
+  logo above a friendly introduction describing the free, open-source app.
+- Use readable 16px body, status, and button text in the welcome/serial dialog,
+  with a 24px heading and comfortable line spacing. Keep the "Provided as is"
+  disclaimer at 12px.
+- Separate the welcome content from the **Serial connection** heading with
+  a 3px horizontal divider and 28px of space above and below it.
+- Include concise MIT License guidance: provided as is without warranty, use
+  at your own risk, and authors are not liable for damages arising from use.
+  Remind users to check their setup before programming. Keep serial controls
+  accessible by scrolling when the dialog exceeds the viewport height.
 - Show the serial-port selector, refresh action, and Connect action when not
   connected; show the active port and Disconnect action when connected.
 - Explain that the selected port is saved locally and restored on later
@@ -82,6 +95,8 @@ one primary application screen rather than separate pages.
 - Browser permissions may persist, but require port reselection after reload
   because Web Serial does not expose stable unique hardware IDs. Do not guess
   which device to connect to from shared USB vendor/product IDs.
+- Use concise browser guidance: **After refreshing the page, select your device
+  again and click Connect. Your browser may remember its permission.**
 
 ### B. Main programming screen — connecting/connected
 
@@ -182,6 +197,18 @@ implementation and supported distribution targets are decided.
 - Do not silently alter, clamp, or substitute entered addresses or values.
 - Disable or gate actions when disconnected, an operation is in progress, or
   required inputs are invalid; explain why an action is unavailable.
+- Disable the target address, CV function dropdown, CV address, Value, and
+  programming buttons whenever disconnected. Selecting or restoring a port
+  alone does not enable editing; a successful connection is required.
+  Confirm/Read/Write retain their capability checks.
+  Keep serial settings, the debug visibility toggle, and navigation available.
+- At startup, open serial settings as a modal when no serial connection is
+  active. Require a successful connection before dismissing it and prevent
+  Escape dismissal while disconnected. Do not offer **Continue**.
+  **Connect** opens the port and dismisses the dialog on success. A valid
+  restored selection still requires connecting. Reopen the modal after
+  disconnect or connection loss. Keep device
+  authorization, refresh, and error feedback usable inside the modal.
 - Keep the target Locomotive or Accessory ID, one active CV address, and
   editable value visible across read and write confirmation. Populate the
   value field after a successful read.
