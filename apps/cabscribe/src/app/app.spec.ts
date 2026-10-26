@@ -236,4 +236,55 @@ describe('App', () => {
       )
     ).not.toBeNull();
   });
+
+  it('shows a browser chooser and selects the authorized port without connecting', async () => {
+    const port = { id: 'web-serial:chosen', label: 'Authorized port' };
+    const transport = {
+      listPorts: vi.fn().mockResolvedValue([]),
+      requestPort: vi.fn().mockResolvedValue(port),
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      readCv: vi.fn(),
+      writeCv: vi.fn(),
+    };
+    TestBed.overrideProvider(DCC_TRANSPORT, { useValue: transport });
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    const chooseButton = [...element.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Choose device'
+    );
+    expect(chooseButton).toBeDefined();
+    chooseButton?.click();
+    await fixture.whenStable();
+    expect(transport.requestPort).toHaveBeenCalledOnce();
+    expect(fixture.componentInstance.selectedPortId()).toBe(port.id);
+    expect(fixture.componentInstance.canConnect()).toBe(true);
+    expect(transport.connect).not.toHaveBeenCalled();
+  });
+
+  it('uses one address for function selection and manual CV entry', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    app.cvValue.set('77');
+    app.selectCvDefinition(29);
+    expect(app.cvAddress()).toBe('29');
+    expect(app.selectedCvDefinition()).toBe(29);
+    expect(app.cvValue()).toBe('77');
+
+    app.cvAddress.set('3');
+    expect(app.selectedCvDefinition()).toBe(3);
+    app.cvAddress.set('250');
+    expect(app.selectedCvDefinition()).toBe(250);
+    expect(app.isCustomCvAddress()).toBe(true);
+    expect(app.cvAddress()).toBe('250');
+    expect(app.selectedCvLabel()).toBe('CV 250 — Manual address');
+    app.cvAddress.set('29');
+    expect(app.isCustomCvAddress()).toBe(false);
+    expect(app.selectedCvLabel()).toBe('CV 29 — Decoder configuration 1');
+    app.selectCvDefinition(null);
+    expect(app.cvAddress()).toBe('');
+    expect(app.selectedCvDefinition()).toBeNull();
+  });
 });

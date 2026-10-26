@@ -49,6 +49,34 @@ describe('DccSessionService', () => {
     });
   });
 
+  it('adds a browser-authorized port without connecting automatically', async () => {
+    const chosen = { id: 'web-serial:chosen', label: 'Authorized port' };
+    const { session, transport } = await createSession({
+      requestPort: vi.fn().mockResolvedValue(chosen),
+    });
+    await session.disconnect();
+    vi.mocked(transport.connect).mockClear();
+
+    expect(session.canRequestPort).toBe(true);
+    expect(await session.requestPort()).toEqual(chosen);
+    expect(session.ports()).toContainEqual(chosen);
+    expect(session.connection()).toEqual({ status: 'disconnected' });
+    expect(transport.connect).not.toHaveBeenCalled();
+  });
+
+  it('surfaces browser permission errors in connection state', async () => {
+    const { session } = await createSession({
+      requestPort: vi.fn().mockRejectedValue(
+        new DccTransportError('permission-denied', 'Serial access blocked.')
+      ),
+    });
+    await session.disconnect();
+    expect(await session.requestPort()).toBeNull();
+    expect(session.connection()).toEqual({
+      status: 'error', message: 'Serial access blocked.',
+    });
+  });
+
   it('records incoming and outgoing serial messages for the debug view', async () => {
     let publishMessage: ((message: SerialLogMessage) => void) | undefined;
     const { session } = await createSession({

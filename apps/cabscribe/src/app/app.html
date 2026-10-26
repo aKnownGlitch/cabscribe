@@ -68,7 +68,34 @@
         <div>
           <h2 id="cv-editor-title">Configuration Variable</h2>
         </div>
+        <p class="cv-reference">
+          <a [href]="cvDefinitionsSource" target="_blank" rel="noopener noreferrer">
+            TCS CV reference
+          </a>
+          · Listed functions vary by decoder. Other CVs can be entered manually.
+        </p>
       </div>
+
+      <mat-form-field appearance="outline" class="cv-function-field">
+        <mat-label>CV function (optional)</mat-label>
+        <mat-select
+          [value]="selectedCvDefinition()"
+          (selectionChange)="selectCvDefinition($event.value)"
+        >
+          <mat-select-trigger>{{ selectedCvLabel() }}</mat-select-trigger>
+          <mat-option [value]="null">Manual CV address</mat-option>
+          @if (isCustomCvAddress()) {
+            <mat-option [value]="selectedCvDefinition()">
+              CV {{ selectedCvDefinition() }} — Manual address
+            </mat-option>
+          }
+          @for (definition of cvDefinitions; track definition.address) {
+            <mat-option [value]="definition.address">
+              CV {{ definition.address }} — {{ definition.label }}
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
 
       <div class="cv-fields">
         <mat-form-field appearance="outline">
@@ -186,9 +213,18 @@
     <p class="card-kicker">HARDWARE CONNECTION</p>
     <h2 id="connection-dialog-title">Serial connection</h2>
     <p>
-      Choose the serial port for your DCC-EX command station. Your selection is
-      remembered on this device.
+      Choose the serial port for your DCC-EX command station.
+      @if (!session.canRequestPort) {
+        Your selection is remembered on this device.
+      }
     </p>
+    @if (session.canRequestPort) {
+      <p>
+        Use Choose device to authorize a serial port in this browser. Previously
+        granted devices appear in the list. Select the port again after reloading;
+        browsers do not expose a stable unique device ID. Use HTTPS or localhost.
+      </p>
+    }
 
     @if (connection.status !== 'connected') {
       <mat-form-field appearance="outline" class="port-select">
@@ -223,6 +259,20 @@
         </p>
       }
       <div class="dialog-actions">
+        @if (session.canRequestPort) {
+          <button
+            mat-button
+            type="button"
+            (click)="authorizePort()"
+            [disabled]="
+              connection.status === 'scanning' ||
+              connection.status === 'connecting' ||
+              operationInProgress()
+            "
+          >
+            Choose device
+          </button>
+        }
         <button
           mat-button
           type="button"

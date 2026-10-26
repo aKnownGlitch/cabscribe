@@ -1,0 +1,86 @@
+export interface CvDefinition {
+  address: number;
+  label: string;
+}
+
+export const CV_DEFINITIONS_SOURCE =
+  'https://docs.tcsdcc.com/wiki/NMRA_Standard_CV%27s';
+
+// Factual address/function mappings from the TCS reference, not decoder capabilities.
+export const CV_DEFINITIONS: readonly CvDefinition[] = [
+  { address: 1, label: 'Short decoder address' },
+  { address: 2, label: 'Starting voltage' },
+  { address: 3, label: 'Acceleration' },
+  { address: 4, label: 'Deceleration' },
+  { address: 5, label: 'Maximum voltage' },
+  { address: 6, label: 'Midpoint voltage' },
+  { address: 7, label: 'Manufacturer version' },
+  { address: 8, label: 'Manufacturer identifier' },
+  { address: 9, label: 'PWM period (not supported by TCS)' },
+  { address: 10, label: 'Back-EMF cutoff' },
+  { address: 11, label: 'Packet timeout' },
+  { address: 12, label: 'Power-source conversion' },
+  { address: 13, label: 'DC functions F1-F8' },
+  { address: 14, label: 'DC functions F0 and F9-F12' },
+  { address: 15, label: 'Decoder lock key' },
+  { address: 16, label: 'Decoder lock identifier' },
+  { address: 17, label: 'Long address: high byte' },
+  { address: 18, label: 'Long address: low byte' },
+  { address: 19, label: 'Consist address' },
+  { address: 21, label: 'Consist functions F1-F8' },
+  { address: 22, label: 'Consist functions F0 and F9-F12' },
+  { address: 23, label: 'Consist acceleration offset' },
+  { address: 24, label: 'Consist deceleration offset' },
+  { address: 25, label: 'Speed-table selection' },
+  { address: 27, label: 'Automatic stopping' },
+  { address: 28, label: 'RailCom settings' },
+  { address: 29, label: 'Decoder configuration 1' },
+  { address: 30, label: 'Decoder error information' },
+  { address: 31, label: 'CV index: high byte' },
+  { address: 32, label: 'CV index: low byte' },
+  ...[
+    'F0 forward mapping (0-6)',
+    'F0 reverse mapping (0-6)',
+    'F1 mapping (0-6)',
+    'F2 mapping (0-6)',
+    'F1 mapping (7-12)',
+    'F2 mapping (7-12)',
+    'F3 mapping (0-6)',
+    'F4 mapping (0-6)',
+    'F3 mapping (7-12)',
+    'F4 mapping (7-12)',
+    'F5 mapping (0-6)',
+    'F6 mapping (0-6)',
+    'F5 mapping (7-12)',
+    'F6 mapping (7-12)',
+  ].map((label, index) => ({
+    address: 33 + index,
+    label: `${label} (TCS mapping)`,
+  })),
+  ...[
+    'F0 forward lighting',
+    'F0 reverse lighting',
+    'F1 lighting',
+    'F2 lighting',
+    'F3 lighting',
+    'F4 lighting',
+    'F5 lighting',
+    'Dither frequency',
+    'Dither amplitude',
+    'F6 lighting',
+  ].map((label, index) => ({
+    address: 49 + index,
+    label: `${label} (TCS)`,
+  })),
+  { address: 61, label: 'Decoder configuration 2 (TCS)' },
+  { address: 63, label: 'Ditch-light hold time (TCS)' },
+  { address: 64, label: 'Constant dim 1 brightness (TCS)' },
+  { address: 66, label: 'Forward speed trim' },
+  ...Array.from({ length: 28 }, (_, index) => ({
+    address: 67 + index,
+    label: `Speed table: step ${index + 1}`,
+  })),
+  { address: 95, label: 'Reverse speed trim' },
+  { address: 105, label: 'User identifier 1' },
+  { address: 106, label: 'User identifier 2' },
+];

@@ -353,6 +353,21 @@ h1 {
   gap: 12px;
 }
 
+.cv-function-field {
+  width: 100%;
+}
+
+.cv-reference {
+  margin: 0 0 0 auto;
+  color: #536873;
+  font-size: 12px;
+  text-align: right;
+}
+
+.cv-reference a {
+  color: #176b68;
+}
+
 .operation-actions {
   display: flex;
   justify-content: flex-end;

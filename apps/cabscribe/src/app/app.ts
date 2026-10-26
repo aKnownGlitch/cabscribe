@@ -15,6 +15,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { DccSessionService } from 'common';
+import { CV_DEFINITIONS, CV_DEFINITIONS_SOURCE } from './cv-definitions';
 
 @Component({
   imports: [
@@ -34,6 +35,23 @@ export class App implements OnInit {
   readonly session = inject(DccSessionService);
   readonly targetAddress = signal('');
   readonly cvAddress = signal('');
+  readonly cvDefinitions = CV_DEFINITIONS;
+  readonly cvDefinitionsSource = CV_DEFINITIONS_SOURCE;
+  readonly selectedCvDefinition = computed(() =>
+    this.parseInteger(this.cvAddress(), 1)
+  );
+  readonly isCustomCvAddress = computed(() => {
+    const address = this.selectedCvDefinition();
+    return address !== null &&
+      !this.cvDefinitions.some((definition) => definition.address === address);
+  });
+  readonly selectedCvLabel = computed(() => {
+    const address = this.selectedCvDefinition();
+    const definition = this.cvDefinitions.find((entry) => entry.address === address);
+    return address === null
+      ? ''
+      : `CV ${address} — ${definition?.label ?? 'Manual address'}`;
+  });
   readonly cvValue = signal('');
   readonly selectedPortId = signal('');
   readonly debugLogVisible = signal(true);
@@ -116,6 +134,17 @@ export class App implements OnInit {
 
   async refreshPorts(): Promise<void> {
     await this.session.discoverPorts();
+  }
+
+  selectCvDefinition(address: number | null): void {
+    this.cvAddress.set(address === null ? '' : String(address));
+  }
+
+  async authorizePort(): Promise<void> {
+    const port = await this.session.requestPort();
+    if (port) {
+      this.selectPort(port.id);
+    }
   }
 
   selectPort(portId: string): void {
@@ -209,8 +238,8 @@ export class App implements OnInit {
     return window.localStorage.getItem(App.selectedPortStorageKey) ?? '';
   }
 
-  private parseInteger(rawValue: string, minimum: number): number | null {
-    if (rawValue.trim() === '') {
+  private parseInteger(rawValue: string | number | null, minimum: number): number | null {
+    if (rawValue === null || String(rawValue).trim() === '') {
       return null;
     }
 

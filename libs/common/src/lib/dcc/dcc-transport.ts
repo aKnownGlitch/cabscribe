@@ -40,6 +40,7 @@ export class DccTransportError extends Error {
 }
 
 export interface DccTransport {
+  requestPort?(): Promise<SerialPortInfo | null>;
   listPorts(): Promise<SerialPortInfo[]>;
   connect(portId: string): Promise<DccConnectionInfo>;
   disconnect(): Promise<void>;
@@ -52,10 +53,14 @@ export interface DccTransport {
 export const DCC_TRANSPORT = new InjectionToken<DccTransport>('DCC_TRANSPORT');
 
 export class UnavailableDccTransport implements DccTransport {
+  constructor(
+    private readonly message = 'Serial communication is not configured in this build.'
+  ) {}
+
   private unavailable(): DccTransportError {
     return new DccTransportError(
       'unavailable',
-      'Serial communication is not configured in this build.'
+      this.message
     );
   }
 

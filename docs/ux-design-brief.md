@@ -75,6 +75,13 @@ one primary application screen rather than separate pages.
 - Explain that the selected port is saved locally and restored on later
   launches. Do not automatically reconnect to the saved port.
 - Include empty, scanning, unavailable, and connection-error states.
+- In Web Serial-capable Chromium browsers, include **Choose device** to invoke
+  the browser permission chooser directly from a user click. List only
+  authorized ports and allow explicit Connect/Disconnect. Require HTTPS or
+  localhost; browser permission and policy errors must be visible.
+- Browser permissions may persist, but require port reselection after reload
+  because Web Serial does not expose stable unique hardware IDs. Do not guess
+  which device to connect to from shared USB vendor/product IDs.
 
 ### B. Main programming screen — connecting/connected
 
@@ -85,6 +92,15 @@ one primary application screen rather than separate pages.
 - Programming context identified as **Service Mode**.
 - One shared single-CV form with CV address and Value fields and **Read** and
   **Write** actions.
+- Include an optional **CV function** dropdown that sets the same CV address
+  as manual entry. Match known functions when an address is typed; retain
+  manual entry for addresses outside the catalog.
+- For a manually entered address outside the catalog, show **CV [number] —
+  Manual address** in the dropdown so it always follows the valid input.
+- The initial catalog covers named CVs through 106 from the
+  [TCS CV reference](https://docs.tcsdcc.com/wiki/NMRA_Standard_CV%27s),
+  including speed-table steps 1–28. Exclude reserved/unused entries, identify
+  TCS-specific assignments, and do not imply universal decoder support.
 - Place a **Programming Target Address** section directly above the CV editor. The entered
   Locomotive or Accessory ID is the programming target and applies to both
   Read and Write.

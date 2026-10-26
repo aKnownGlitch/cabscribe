@@ -70,6 +70,7 @@ export class DccSessionService {
     message: 'Serial communication is not configured in this build.',
   });
   readonly operation = signal<OperationState>({ kind: 'idle' });
+  readonly canRequestPort = typeof this.transport.requestPort === 'function';
 
   constructor() {
     this.transport.onDisconnected?.((message) =>
@@ -91,6 +92,27 @@ export class DccSessionService {
     } catch (error) {
       this.ports.set([]);
       this.connection.set(this.connectionFailure(error));
+    }
+  }
+
+  async requestPort(): Promise<SerialPortInfo | null> {
+    if (!this.transport.requestPort) {
+      return null;
+    }
+    this.connection.set({ status: 'scanning' });
+    try {
+      const port = await this.transport.requestPort();
+      if (port) {
+        this.ports.update((ports) => [
+          ...ports.filter((candidate) => candidate.id !== port.id),
+          port,
+        ]);
+      }
+      this.connection.set({ status: 'disconnected' });
+      return port;
+    } catch (error) {
+      this.connection.set(this.connectionFailure(error));
+      return null;
     }
   }
 

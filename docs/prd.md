@@ -16,6 +16,14 @@ the client through a narrowly scoped, context-isolated bridge. macOS is an
 additional UI testing environment, not an initial release target. Capacitor is
 not used for the initial Linux desktop release.
 
+The Angular application also supports serial-port access in Web Serial-capable
+Chromium browsers on HTTPS or localhost. Browser access requires explicit device
+permission, and discovery lists only ports already authorized for the origin.
+Users must reselect the port after reloading because Web Serial does not expose
+a stable unique hardware ID. Both browser and Electron transports currently
+open/close serial ports and expose received serial traffic; DCC-EX CV commands
+remain disabled pending protocol implementation and hardware verification.
+
 ## 2. Problem and opportunity
 
 DCC users need to inspect and configure decoder CVs through hardware connected

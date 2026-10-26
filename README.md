@@ -24,6 +24,9 @@ Service Mode programming.
 ## Technology and platform
 
 - Angular desktop UI hosted by Electron.
+- Chromium browser support through Web Serial on HTTPS or localhost, with an
+  explicit device-permission chooser. Unsupported browsers cannot access serial
+  ports.
 - Serial-port access in Electron's main process, exposed to the UI through a
   restricted preload bridge.
 - Initial package target: Debian `.deb` for Linux x64.
@@ -60,11 +63,28 @@ This builds the Angular renderer and launches the Electron application. The
 serial port can be enumerated and opened, but the app does not yet communicate
 with DCC-EX for CV operations.
 
-To run only the browser-based Angular UI:
+To run the browser-based Angular UI with Web Serial:
 
 ```sh
 npx nx serve cabscribe
 ```
+
+Open the localhost URL in a Web Serial-capable Chromium browser (such as desktop
+Chrome or Edge). In serial connection settings, click **Choose device**, grant
+access to the command station, select the authorized port, and click **Connect**.
+The browser opens it at 115200 baud and displays received bytes in the debug log.
+Disconnect releases the port; unplugging it reports a connection error.
+
+Device permission may persist according to browser settings, but a page can only
+list ports authorized for its origin. Browser APIs do not expose a stable unique
+hardware identifier: select the port again after reloading, rather than relying
+on a saved Electron device path or matching ambiguous USB vendor/product IDs.
+Another application must not already be using the port. Production hosting
+requires HTTPS and must not block the `serial` Permissions Policy.
+
+Browser and Electron builds currently have the same CV limitation: DCC-EX CV
+commands are not implemented, so Read and Write remain disabled. Browser serial
+behavior is covered by mocked API tests; physical-device testing is still needed.
 
 ### Build and test
 

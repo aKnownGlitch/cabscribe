@@ -5,6 +5,7 @@ import {
   SerialPortInfo,
   UnavailableDccTransport,
 } from 'common';
+import { BrowserSerial, WebSerialDccTransport } from './web-serial-dcc.transport';
 
 export interface CabscribeDesktopBridge {
   listPorts(): Promise<SerialPortInfo[]>;
@@ -59,5 +60,15 @@ export function createDccTransport(): DccTransport {
     return new ElectronDccTransport(window.cabscribeDesktop);
   }
 
-  return new UnavailableDccTransport();
+  if (
+    typeof window !== 'undefined' &&
+    window.isSecureContext &&
+    'serial' in navigator
+  ) {
+    return new WebSerialDccTransport(navigator.serial as BrowserSerial);
+  }
+
+  return new UnavailableDccTransport(
+    'Browser serial access requires a Web Serial-capable Chromium browser on HTTPS or localhost. Check browser permissions and the serial Permissions Policy.'
+  );
 }
