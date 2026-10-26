@@ -134,12 +134,26 @@ ipcMain.handle('cabscribe:dcc:write-cv', async (_event, cv, value) => {
 });
 
 function createWindow() {
+  const webAppPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'web', 'index.html')
+    : path.resolve(
+        __dirname,
+        '../../../dist/apps/cabscribe/browser/index.html'
+      );
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'web', 'cabscribe-icon.png')
+    : path.resolve(
+        __dirname,
+        '../../cabscribe/public/cabscribe-icon.png'
+      );
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 900,
     minWidth: 760,
     minHeight: 620,
     backgroundColor: '#f5f7f8',
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -148,12 +162,6 @@ function createWindow() {
     },
   });
 
-  const webAppPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'web', 'index.html')
-    : path.resolve(
-        __dirname,
-        '../../../dist/apps/cabscribe/browser/index.html'
-      );
   const allowedFileUrl = pathToFileURL(webAppPath).href;
 
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));

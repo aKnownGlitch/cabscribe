@@ -1,12 +1,37 @@
 <div class="app-shell">
   @let connection = session.connection();
   <header class="topbar">
-    <a class="brand" href="/" aria-label="CabScribe home">
-      <span class="brand-mark" aria-hidden="true">C</span>
-      <span class="brand-name">CabScribe</span>
+    <a class="brand" href="/" aria-label="CABSCRIBE home">
+      <img
+        class="brand-mark"
+        src="cabscribe-icon.png"
+        alt=""
+        aria-hidden="true"
+      />
+      <span class="brand-name"><strong>CAB</strong>SCRIBE</span>
     </a>
     <span class="product-context">DCC decoder programmer</span>
-    <span class="mode-chip">Service Mode</span>
+    <div class="connection-actions">
+      <span class="mode-chip" role="status" aria-live="polite">
+        {{ connection.status === 'connected' ? 'Service Mode' : 'Disconnected' }}
+      </span>
+      <button
+        class="connection-settings-button"
+        type="button"
+        aria-label="Serial connection settings"
+        title="Serial connection settings"
+        aria-controls="connectionDialog"
+        (click)="openConnectionDialog()"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M4 7h9m4 0h3M4 17h3m4 0h9M13 5v4M7 15v4"
+          />
+          <circle cx="15" cy="7" r="2" />
+          <circle cx="9" cy="17" r="2" />
+        </svg>
+      </button>
+    </div>
   </header>
 
   <main class="workspace">
@@ -25,142 +50,20 @@
       </div>
     </section>
 
-    <section class="connection-panel" aria-labelledby="connection-title">
-      <div class="connection-main">
-        <div
-          class="connection-indicator"
-          [class.is-connected]="isConnected()"
-          [class.is-busy]="
-            connection.status === 'scanning' ||
-            connection.status === 'connecting'
-          "
-          aria-hidden="true"
-        >
-          <span></span>
-        </div>
-        <div class="connection-copy">
-          <h2 id="connection-title">Hardware connection</h2>
-          <p
-            class="connection-state"
-            [class.is-connected]="isConnected()"
-            role="status"
-            aria-live="polite"
-          >
-            {{ connectionLabel() }}
-            @if (connection.status === 'connected') {
-              <span class="connection-device">
-                · {{ connection.port.label }}
-              </span>
-            }
-          </p>
+    <section class="operation-card" aria-labelledby="cv-editor-title">
+      <div class="card-heading">
+        <div>
+          <p class="card-kicker">DECODER CONFIGURATION</p>
+          <h2 id="cv-editor-title">Configuration Variable</h2>
         </div>
       </div>
+      <p class="card-description">
+        Read a CV into the value field, edit it if needed, then write the value
+        back to the same CV.
+      </p>
 
-      <div class="connection-controls">
-        @if (!isConnected()) {
-          <mat-form-field appearance="outline" class="port-select">
-            <mat-label>Serial port</mat-label>
-            <mat-select
-              [value]="selectedPortId()"
-              (selectionChange)="selectedPortId.set($event.value)"
-              [disabled]="session.ports().length === 0"
-            >
-              @for (port of session.ports(); track port.id) {
-                <mat-option [value]="port.id">{{ port.label }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-          <button
-            mat-flat-button
-            type="button"
-            class="connect-button"
-            (click)="connect()"
-            [disabled]="!canConnect()"
-          >
-            @if (connection.status === 'connecting') {
-              <mat-progress-spinner
-                diameter="17"
-                mode="indeterminate"
-                aria-label="Connecting"
-              ></mat-progress-spinner>
-            } @else {
-              Connect
-            }
-          </button>
-        } @else {
-          <button
-            mat-stroked-button
-            type="button"
-            class="disconnect-button"
-            (click)="disconnect()"
-            [disabled]="operationInProgress()"
-          >
-            Disconnect
-          </button>
-        }
-        <button
-          mat-button
-          type="button"
-          class="refresh-button"
-          (click)="refreshPorts()"
-          [disabled]="
-            connection.status === 'scanning' ||
-            connection.status === 'connecting' ||
-            isConnected() ||
-            operationInProgress()
-          "
-        >
-          Refresh
-        </button>
-      </div>
-
-      @if (
-        connection.status === 'unavailable' ||
-        connection.status === 'error'
-      ) {
-        <p class="connection-message" role="alert">
-          {{ connection.message }}
-        </p>
-      } @else if (
-        connection.status === 'disconnected' &&
-        session.ports().length === 0
-      ) {
-        <p class="connection-message">
-          No serial ports are available. Connect a DCC-EX command station and
-          refresh the device list.
-        </p>
-      } @else if (
-        connection.status === 'connected' &&
-        (!connection.capabilities.serviceModeRead ||
-          !connection.capabilities.serviceModeWrite)
-      ) {
-        <p class="connection-message">
-          {{
-            connection.message ||
-              'The serial port is open, but DCC-EX Service Mode operations are not available yet.'
-          }}
-        </p>
-      } @else if (connection.status === 'connected') {
-        <p class="connection-message">
-          Ready for Service Mode CV operations.
-        </p>
-      }
-    </section>
-
-    <section class="operations-grid" aria-label="CV operations">
-      <article class="operation-card" aria-labelledby="read-title">
-        <div class="card-heading">
-          <div class="card-icon read-icon" aria-hidden="true">R</div>
-          <div>
-            <p class="card-kicker">INSPECT</p>
-            <h2 id="read-title">Read a CV</h2>
-          </div>
-        </div>
-        <p class="card-description">
-          Read the current value from the connected decoder.
-        </p>
-
-        <mat-form-field appearance="outline" class="full-width">
+      <div class="cv-fields">
+        <mat-form-field appearance="outline">
           <mat-label>CV address</mat-label>
           <input
             matInput
@@ -168,77 +71,50 @@
             inputmode="numeric"
             min="1"
             step="1"
-            [ngModel]="readAddress()"
-            (ngModelChange)="readAddress.set($event)"
+            [ngModel]="cvAddress()"
+            (ngModelChange)="cvAddress.set($event)"
             [ngModelOptions]="{ standalone: true }"
-            aria-describedby="read-cv-help"
+            aria-describedby="cv-address-help"
             placeholder="Enter a CV address"
           />
-          <mat-hint id="read-cv-help">
+          <mat-hint id="cv-address-help">
             Enter a whole-number CV address.
           </mat-hint>
         </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Value</mat-label>
+          <input
+            matInput
+            type="number"
+            inputmode="numeric"
+            min="0"
+            step="1"
+            [ngModel]="cvValue()"
+            (ngModelChange)="cvValue.set($event)"
+            [ngModelOptions]="{ standalone: true }"
+            aria-describedby="cv-value-help"
+            placeholder="Read or enter a value"
+          />
+          <mat-hint id="cv-value-help">
+            Read the current value or enter a new whole-number value.
+          </mat-hint>
+        </mat-form-field>
+      </div>
 
+      <p class="verification-note">
+        Every write is read back. A mismatch or unreadable result is never
+        shown as verified.
+      </p>
+      <div class="operation-actions">
         <button
-          mat-flat-button
+          mat-stroked-button
           type="button"
-          class="operation-button"
+          class="operation-button read-button"
           (click)="read()"
           [disabled]="!canRead()"
         >
-          Read value
+          Read
         </button>
-      </article>
-
-      <article class="operation-card write-card" aria-labelledby="write-title">
-        <div class="card-heading">
-          <div class="card-icon write-icon" aria-hidden="true">W</div>
-          <div>
-            <p class="card-kicker">CHANGE</p>
-            <h2 id="write-title">Write a CV</h2>
-          </div>
-        </div>
-        <p class="card-description">
-          Review the change before sending it to the decoder.
-        </p>
-
-        <div class="write-fields">
-          <mat-form-field appearance="outline">
-            <mat-label>CV address</mat-label>
-            <input
-              matInput
-              type="number"
-              inputmode="numeric"
-              min="1"
-              step="1"
-              [ngModel]="writeAddress()"
-              (ngModelChange)="writeAddress.set($event)"
-              [ngModelOptions]="{ standalone: true }"
-              aria-label="CV address to write"
-              placeholder="CV"
-            />
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>New value</mat-label>
-            <input
-              matInput
-              type="number"
-              inputmode="numeric"
-              min="0"
-              step="1"
-              [ngModel]="writeValue()"
-              (ngModelChange)="writeValue.set($event)"
-              [ngModelOptions]="{ standalone: true }"
-              aria-label="New CV value"
-              placeholder="Value"
-            />
-          </mat-form-field>
-        </div>
-
-        <p class="verification-note">
-          Every write is read back. A mismatch or unreadable result is never
-          shown as verified.
-        </p>
         <button
           mat-flat-button
           type="button"
@@ -246,9 +122,9 @@
           (click)="requestWrite()"
           [disabled]="!canWrite()"
         >
-          Review write
+          Write
         </button>
-      </article>
+      </div>
     </section>
 
     <section class="result-panel" aria-labelledby="result-title">
@@ -356,10 +232,118 @@
   </main>
 
   <footer class="app-footer">
-    <span>CabScribe</span>
+    <span class="footer-brand"><strong>CAB</strong>SCRIBE</span>
     <span>Local connection · No cloud account required</span>
   </footer>
 </div>
+
+<dialog
+  #connectionDialog
+  id="connectionDialog"
+  class="connection-dialog"
+  aria-labelledby="connection-dialog-title"
+>
+  <div class="dialog-content">
+    <p class="card-kicker">HARDWARE CONNECTION</p>
+    <h2 id="connection-dialog-title">Serial connection</h2>
+    <p>
+      Choose the serial port for your DCC-EX command station. Your selection is
+      remembered on this device.
+    </p>
+
+    @if (connection.status !== 'connected') {
+      <mat-form-field appearance="outline" class="port-select">
+        <mat-label>Serial port</mat-label>
+        <mat-select
+          [value]="selectedPortId()"
+          (selectionChange)="selectPort($event.value)"
+          [disabled]="session.ports().length === 0"
+        >
+          @for (port of session.ports(); track port.id) {
+            <mat-option [value]="port.id">{{ port.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      @if (connection.status === 'scanning') {
+        <p class="dialog-status" role="status">Scanning for serial ports…</p>
+      } @else if (
+        session.ports().length === 0 &&
+        connection.status !== 'unavailable'
+      ) {
+        <p class="dialog-status">
+          No serial ports are available. Connect the command station and
+          refresh the list.
+        </p>
+      }
+      @if (
+        connection.status === 'unavailable' ||
+        connection.status === 'error'
+      ) {
+        <p class="dialog-status error" role="alert">
+          {{ connection.message }}
+        </p>
+      }
+      <div class="dialog-actions">
+        <button
+          mat-button
+          type="button"
+          class="cancel-button"
+          (click)="refreshPorts()"
+          [disabled]="
+            connection.status === 'scanning' ||
+            connection.status === 'connecting' ||
+            operationInProgress()
+          "
+        >
+          Refresh ports
+        </button>
+        <button
+          mat-flat-button
+          type="button"
+          class="confirm-button"
+          (click)="connect()"
+          [disabled]="!canConnect()"
+        >
+          @if (connection.status === 'connecting') {
+            <mat-progress-spinner
+              diameter="17"
+              mode="indeterminate"
+              aria-label="Connecting"
+            ></mat-progress-spinner>
+          } @else {
+            Connect
+          }
+        </button>
+      </div>
+    } @else {
+      <p class="dialog-status">
+        Connected to {{ connection.port.label }}.
+        @if (!connection.capabilities.serviceModeRead) {
+          {{ connection.message }}
+        }
+      </p>
+      <div class="dialog-actions">
+        <button
+          mat-button
+          type="button"
+          class="cancel-button"
+          (click)="closeConnectionDialog()"
+        >
+          Close
+        </button>
+        <button
+          mat-stroked-button
+          type="button"
+          class="disconnect-button"
+          (click)="disconnect()"
+          [disabled]="operationInProgress()"
+        >
+          Disconnect
+        </button>
+      </div>
+    }
+  </div>
+</dialog>
 
 <dialog
   #writeDialog

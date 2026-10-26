@@ -29,10 +29,10 @@ import { DccSessionService } from 'common';
   styleUrl: './app.scss',
 })
 export class App implements OnInit {
+  private static readonly selectedPortStorageKey = 'cabscribe.selectedSerialPort';
   readonly session = inject(DccSessionService);
-  readonly readAddress = signal('');
-  readonly writeAddress = signal('');
-  readonly writeValue = signal('');
+  readonly cvAddress = signal('');
+  readonly cvValue = signal('');
   readonly selectedPortId = signal('');
   readonly pendingWrite = signal<{ cv: number; value: number } | null>(null);
   readonly isConnected = computed(
@@ -56,63 +56,79 @@ export class App implements OnInit {
     () =>
       this.connectionHasReadCapability() &&
       !this.operationInProgress() &&
-      this.parseInteger(this.readAddress(), 1) !== null
+      this.parseInteger(this.cvAddress(), 1) !== null
   );
   readonly canWrite = computed(
     () =>
       this.connectionHasWriteCapabilities() &&
       !this.operationInProgress() &&
-      this.parseInteger(this.writeAddress(), 1) !== null &&
-      this.parseInteger(this.writeValue(), 0) !== null
+      this.parseInteger(this.cvAddress(), 1) !== null &&
+      this.parseInteger(this.cvValue(), 0) !== null
   );
 
   @ViewChild('writeDialog') private writeDialog?: ElementRef<HTMLDialogElement>;
+  @ViewChild('connectionDialog')
+  private connectionDialog?: ElementRef<HTMLDialogElement>;
 
   ngOnInit(): void {
-    void this.session.discoverPorts();
-  }
-
-  connectionLabel(): string {
-    switch (this.session.connection().status) {
-      case 'connected':
-        return this.connectionHasWriteCapabilities()
-          ? 'DCC-EX ready'
-          : 'Serial port open · protocol pending';
-      case 'connecting':
-        return 'Connecting';
-      case 'scanning':
-        return 'Checking serial support';
-      case 'disconnected':
-        return 'Not connected';
-      case 'unavailable':
-        return 'Serial support unavailable';
-      case 'error':
-        return 'Connection error';
+    const storedPortId = this.readStoredPortId();
+    if (storedPortId) {
+      this.selectedPortId.set(storedPortId);
     }
+    void this.session.discoverPorts();
   }
 
   async refreshPorts(): Promise<void> {
     await this.session.discoverPorts();
   }
 
+  selectPort(portId: string): void {
+    this.selectedPortId.set(portId);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(
+        App.selectedPortStorageKey,
+        portId
+      );
+    }
+  }
+
+  openConnectionDialog(): void {
+    this.connectionDialog?.nativeElement.showModal();
+  }
+
+  closeConnectionDialog(): void {
+    this.connectionDialog?.nativeElement.close();
+  }
+
   async connect(): Promise<void> {
     await this.session.connect(this.selectedPortId());
+    if (this.isConnected()) {
+      this.closeConnectionDialog();
+    }
   }
 
   async disconnect(): Promise<void> {
     await this.session.disconnect();
+    if (this.session.connection().status === 'disconnected') {
+      this.closeConnectionDialog();
+    }
   }
 
   async read(): Promise<void> {
-    const cv = this.parseInteger(this.readAddress(), 1);
+    const cv = this.parseInteger(this.cvAddress(), 1);
     if (cv !== null) {
+      this.cvValue.set('');
       await this.session.readCv(cv);
+      const operation = this.session.operation();
+      if (operation.kind === 'read-success' && operation.cv === cv) {
+        this.cvValue.set(String(operation.value));
+      }
     }
   }
 
   requestWrite(): void {
-    const cv = this.parseInteger(this.writeAddress(), 1);
-    const value = this.parseInteger(this.writeValue(), 0);
+    const cv = this.parseInteger(this.cvAddress(), 1);
+    const value = this.parseInteger(this.cvValue(), 0);
     if (cv === null || value === null || !this.connectionHasWriteCapabilities()) {
       return;
     }
@@ -133,6 +149,13 @@ export class App implements OnInit {
     if (pending) {
       await this.session.writeCv(pending.cv, pending.value);
     }
+  }
+
+  private readStoredPortId(): string {
+    if (typeof window === 'undefined') {
+      return '';
+    }
+    return window.localStorage.getItem(App.selectedPortStorageKey) ?? '';
   }
 
   private parseInteger(rawValue: string, minimum: number): number | null {

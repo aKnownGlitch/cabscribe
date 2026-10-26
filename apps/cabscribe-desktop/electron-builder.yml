@@ -13,6 +13,7 @@ extraResources:
       - "**/*"
 linux:
   category: Utility
+  icon: ../cabscribe/public/cabscribe-icon.png
   target:
     - target: deb
       arch:

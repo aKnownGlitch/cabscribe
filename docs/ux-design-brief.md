@@ -30,15 +30,19 @@ controls, or firmware workflows.
 
 ## 3. Primary user flow
 
-1. Launch CabScribe and see that no serial device is connected.
-2. Choose an available serial port and connect to the DCC-EX command station.
-3. See a clear connected/ready state and Service Mode context.
-4. Enter one CV address and request a read; review the returned value or error.
-5. Enter a CV address and value to write; review the exact change and explicitly
-   confirm it.
-6. See the write in progress, then the read-back value and a verified success,
+1. Launch CabScribe and see a **Disconnected** status in the header.
+2. Open serial connection settings with the adjacent icon button.
+3. Choose an available serial port and connect to the DCC-EX command station.
+   The selected port is remembered in local storage for the next session.
+4. See the header change to **Service Mode** after the serial connection opens,
+   and a clear connected/ready state in the main screen.
+5. Enter one CV address and press **Read**; on success, the returned value
+   appears in the editable **Value** field.
+6. Edit the value if needed and press **Write** to review and explicitly
+   confirm the change for that same CV.
+7. See the write in progress, then the read-back value and a verified success,
    mismatch, or unverified/failure outcome.
-7. If disconnected or an operation fails, understand the state and choose
+8. If disconnected or an operation fails, understand the state and choose
    whether to reconnect or retry. Never retry a write automatically.
 
 ## 4. Figma screens and states
@@ -48,20 +52,36 @@ one primary application screen rather than separate pages.
 
 ### A. Main programming screen — disconnected
 
-- Product identity and a clear connection status.
-- Serial-port selector with an empty state when no devices are available.
-- Connect action and a concise explanation of what hardware is required.
-- CV read/write area visible but unavailable until the connection is ready, or
-  a clear prompt directing the user to connect first.
+- Product identity and a clear connection status in the header.
+- Do not show a separate hardware connection panel on the main programming
+  screen. Keep the **Disconnected** status and adjacent icon button to open
+  serial connection settings in the header.
+- A single CV editor with a CV address field, editable Value field, and **Read**
+  and **Write** buttons; unavailable until the connection is ready, or with a
+  clear prompt directing the user to connect first.
 - Helpful state for device discovery failure or unavailable permissions.
+
+### A1. Serial connection settings dialog
+
+- Open from the connection icon button beside the header status.
+- Show the serial-port selector, refresh action, and Connect action when not
+  connected; show the active port and Disconnect action when connected.
+- Explain that the selected port is saved locally and restored on later
+  launches. Do not automatically reconnect to the saved port.
+- Include empty, scanning, unavailable, and connection-error states.
 
 ### B. Main programming screen — connecting/connected
 
-- Distinguishable connecting, connected/ready, and disconnected states.
-- Connected device/port identity and a disconnect action.
+- Show connection state in the header status chip (**Service Mode** when
+  connected).
+- Keep connected device/port identity and disconnect action in the serial
+  connection settings dialog, not in a main-screen hardware panel.
 - Programming context identified as **Service Mode**.
-- Single-CV read form: CV address, Read action, result/value area.
-- Single-CV write form: CV address and value, Write action.
+- One shared single-CV form with CV address and Value fields and **Read** and
+  **Write** actions.
+- A successful read places the returned value in the editable Value field.
+- Writing uses the current CV address and edited Value field, then requires
+  confirmation before sending.
 - Loading/progress feedback that prevents conflicting operations while a
   request is active.
 
@@ -110,8 +130,9 @@ implementation and supported distribution targets are decided.
 - Do not silently alter, clamp, or substitute entered addresses or values.
 - Disable or gate actions when disconnected, an operation is in progress, or
   required inputs are invalid; explain why an action is unavailable.
-- Keep the active CV and value visible throughout write confirmation and
-  result feedback.
+- Keep one active CV address and editable value visible across read, write
+  confirmation, and result feedback. Populate the value field after a
+  successful read.
 - Make it clear that only the current operation is shown; there is no saved
   operation history in the initial release.
 - Include concise instructions for recovering from connection and operation
@@ -136,8 +157,9 @@ implementation and supported distribution targets are decided.
 - Connected/disconnected, device discovery, permission/error, and operation
   progress states.
 - Write confirmation and all key read/write result states.
-- Clickable prototype for connect → read → write confirmation → verified
-  result, including at least one error/recovery path.
+- Clickable prototype for connect → read into the editable value field → edit
+  value → write confirmation → verified result, including at least one
+  error/recovery path.
 - Reusable component variants for connection status, input validation,
   operation feedback, buttons, and confirmation dialog.
 - Brief annotations for interaction behavior, keyboard/accessibility details,
