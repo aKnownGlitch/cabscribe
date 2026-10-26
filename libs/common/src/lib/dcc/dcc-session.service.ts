@@ -2,8 +2,11 @@ import { inject, Injectable, signal } from '@angular/core';
 import {
   DCC_TRANSPORT,
   DccTransportError,
+  SerialLogMessage,
   SerialPortInfo,
 } from './dcc-transport';
+
+const MAX_SERIAL_LOG_LINES = 1000;
 
 export type ConnectionState =
   | { status: 'scanning' | 'connecting' }
@@ -21,27 +24,47 @@ export type ConnectionState =
 
 export type OperationState =
   | { kind: 'idle' }
-  | { kind: 'reading'; cv: number }
-  | { kind: 'read-success'; cv: number; value: number }
-  | { kind: 'read-failure'; cv: number; message: string }
-  | { kind: 'writing'; cv: number; value: number }
-  | { kind: 'verifying'; cv: number; value: number }
-  | { kind: 'write-verified'; cv: number; value: number }
+  | { kind: 'reading'; address: number; cv: number }
+  | { kind: 'read-success'; address: number; cv: number; value: number }
+  | { kind: 'read-failure'; address: number; cv: number; message: string }
+  | { kind: 'writing'; address: number; cv: number; value: number }
+  | { kind: 'verifying'; address: number; cv: number; value: number }
+  | { kind: 'write-verified'; address: number; cv: number; value: number }
   | {
       kind: 'write-mismatch';
+      address: number;
       cv: number;
       requestedValue: number;
       readBackValue: number;
     }
-  | { kind: 'write-unverified'; cv: number; value: number; message: string }
-  | { kind: 'write-failure'; cv: number; value: number; message: string }
-  | { kind: 'write-unknown'; cv: number; value: number; message: string };
+  | {
+      kind: 'write-unverified';
+      address: number;
+      cv: number;
+      value: number;
+      message: string;
+    }
+  | {
+      kind: 'write-failure';
+      address: number;
+      cv: number;
+      value: number;
+      message: string;
+    }
+  | {
+      kind: 'write-unknown';
+      address: number;
+      cv: number;
+      value: number;
+      message: string;
+    };
 
 @Injectable()
 export class DccSessionService {
   private readonly transport = inject(DCC_TRANSPORT);
 
   readonly ports = signal<SerialPortInfo[]>([]);
+  readonly serialLog = signal<SerialLogMessage[]>([]);
   readonly connection = signal<ConnectionState>({
     status: 'unavailable',
     message: 'Serial communication is not configured in this build.',
@@ -52,6 +75,11 @@ export class DccSessionService {
     this.transport.onDisconnected?.((message) =>
       this.handleConnectionLost(message)
     );
+    this.transport.onSerialMessage?.((message) => {
+      this.serialLog.update((entries) =>
+        [...entries, message].slice(-MAX_SERIAL_LOG_LINES)
+      );
+    });
   }
 
   async discoverPorts(): Promise<void> {
@@ -99,11 +127,12 @@ export class DccSessionService {
     }
   }
 
-  async readCv(cv: number): Promise<void> {
+  async readCv(address: number, cv: number): Promise<void> {
     const connection = this.connection();
     if (connection.status !== 'connected') {
       this.operation.set({
         kind: 'read-failure',
+        address,
         cv,
         message: 'Connect to a command station before reading a CV.',
       });
@@ -112,30 +141,33 @@ export class DccSessionService {
     if (!connection.capabilities.serviceModeRead) {
       this.operation.set({
         kind: 'read-failure',
+        address,
         cv,
         message: 'Service Mode CV reading is not available on this connection.',
       });
       return;
     }
 
-    this.operation.set({ kind: 'reading', cv });
+    this.operation.set({ kind: 'reading', address, cv });
     try {
-      const value = await this.transport.readCv(cv);
-      this.operation.set({ kind: 'read-success', cv, value });
+      const value = await this.transport.readCv(address, cv);
+      this.operation.set({ kind: 'read-success', address, cv, value });
     } catch (error) {
       this.operation.set({
         kind: 'read-failure',
+        address,
         cv,
         message: this.errorMessage(error, 'The CV could not be read.'),
       });
     }
   }
 
-  async writeCv(cv: number, value: number): Promise<void> {
+  async writeCv(address: number, cv: number, value: number): Promise<void> {
     const connection = this.connection();
     if (connection.status !== 'connected') {
       this.operation.set({
         kind: 'write-failure',
+        address,
         cv,
         value,
         message: 'Connect to a command station before writing a CV.',
@@ -145,6 +177,7 @@ export class DccSessionService {
     if (!connection.capabilities.serviceModeRead || !connection.capabilities.serviceModeWrite) {
       this.operation.set({
         kind: 'write-failure',
+        address,
         cv,
         value,
         message:
@@ -153,9 +186,9 @@ export class DccSessionService {
       return;
     }
 
-    this.operation.set({ kind: 'writing', cv, value });
+    this.operation.set({ kind: 'writing', address, cv, value });
     try {
-      await this.transport.writeCv(cv, value);
+      await this.transport.writeCv(address, cv, value);
     } catch (error) {
       const message = this.errorMessage(error, 'The CV write failed.');
       this.operation.set({
@@ -163,6 +196,7 @@ export class DccSessionService {
           error instanceof DccTransportError && error.writeOutcomeUnknown
             ? 'write-unknown'
             : 'write-failure',
+        address,
         cv,
         value,
         message,
@@ -170,14 +204,15 @@ export class DccSessionService {
       return;
     }
 
-    this.operation.set({ kind: 'verifying', cv, value });
+    this.operation.set({ kind: 'verifying', address, cv, value });
     try {
-      const readBackValue = await this.transport.readCv(cv);
+      const readBackValue = await this.transport.readCv(address, cv);
       this.operation.set(
         readBackValue === value
-          ? { kind: 'write-verified', cv, value }
+          ? { kind: 'write-verified', address, cv, value }
           : {
               kind: 'write-mismatch',
+              address,
               cv,
               requestedValue: value,
               readBackValue,
@@ -186,6 +221,7 @@ export class DccSessionService {
     } catch (error) {
       this.operation.set({
         kind: 'write-unverified',
+        address,
         cv,
         value,
         message: this.errorMessage(
@@ -212,6 +248,7 @@ export class DccSessionService {
     if (currentOperation.kind === 'writing' || currentOperation.kind === 'verifying') {
       this.operation.set({
         kind: 'write-unknown',
+        address: currentOperation.address,
         cv: currentOperation.cv,
         value: currentOperation.value,
         message,
@@ -219,6 +256,7 @@ export class DccSessionService {
     } else if (currentOperation.kind === 'reading') {
       this.operation.set({
         kind: 'read-failure',
+        address: currentOperation.address,
         cv: currentOperation.cv,
         message,
       });

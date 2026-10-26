@@ -22,6 +22,13 @@ function notifyUnexpectedDisconnect(port, message) {
   mainWindow?.webContents.send('cabscribe:serial:disconnected', message);
 }
 
+function reportSerialMessage(direction, message) {
+  mainWindow?.webContents.send('cabscribe:serial:message', {
+    direction,
+    message,
+  });
+}
+
 ipcMain.handle('cabscribe:serial:list', async () => {
   const ports = await SerialPort.list();
   return ports.map((port) => ({
@@ -64,6 +71,9 @@ ipcMain.handle('cabscribe:serial:connect', async (_event, portId) => {
   });
 
   activePort = port;
+  port.on('data', (data) => {
+    reportSerialMessage('incoming', data.toString('utf8'));
+  });
   port.on('error', (error) => {
     notifyUnexpectedDisconnect(
       port,
@@ -112,7 +122,10 @@ ipcMain.handle('cabscribe:serial:disconnect', async () => {
   });
 });
 
-ipcMain.handle('cabscribe:dcc:read-cv', async (_event, cv) => {
+ipcMain.handle('cabscribe:dcc:read-cv', async (_event, address, cv) => {
+  if (!Number.isSafeInteger(address) || address < 1) {
+    throw new Error('Enter a positive whole-number locomotive or accessory ID.');
+  }
   if (!Number.isSafeInteger(cv) || cv < 1) {
     throw new Error('Enter a positive whole-number CV address.');
   }
@@ -121,7 +134,10 @@ ipcMain.handle('cabscribe:dcc:read-cv', async (_event, cv) => {
   );
 });
 
-ipcMain.handle('cabscribe:dcc:write-cv', async (_event, cv, value) => {
+ipcMain.handle('cabscribe:dcc:write-cv', async (_event, address, cv, value) => {
+  if (!Number.isSafeInteger(address) || address < 1) {
+    throw new Error('Enter a positive whole-number locomotive or accessory ID.');
+  }
   if (!Number.isSafeInteger(cv) || cv < 1) {
     throw new Error('Enter a positive whole-number CV address.');
   }

@@ -4,6 +4,7 @@ import {
   OnInit,
   ViewChild,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -31,10 +32,30 @@ import { DccSessionService } from 'common';
 export class App implements OnInit {
   private static readonly selectedPortStorageKey = 'cabscribe.selectedSerialPort';
   readonly session = inject(DccSessionService);
+  readonly targetAddress = signal('');
   readonly cvAddress = signal('');
   readonly cvValue = signal('');
   readonly selectedPortId = signal('');
-  readonly pendingWrite = signal<{ cv: number; value: number } | null>(null);
+  readonly debugLogVisible = signal(true);
+  readonly pendingWrite = signal<{
+    address: number;
+    cv: number;
+    value: number;
+  } | null>(null);
+  readonly serialLogText = computed(() =>
+    this.session
+      .serialLog()
+      .map(({ direction, message }) => {
+        const prefix = direction === 'outgoing' ? 'CS> ' : 'DC< ';
+        return message
+          .replace(/\r\n?/g, '\n')
+          .split('\n')
+          .filter((line) => line.length > 0)
+          .map((line) => `${prefix}${line}`)
+          .join('\n');
+      })
+      .join('\n')
+  );
   readonly isConnected = computed(
     () => this.session.connection().status === 'connected'
   );
@@ -56,12 +77,14 @@ export class App implements OnInit {
     () =>
       this.connectionHasReadCapability() &&
       !this.operationInProgress() &&
+      this.parseInteger(this.targetAddress(), 1) !== null &&
       this.parseInteger(this.cvAddress(), 1) !== null
   );
   readonly canWrite = computed(
     () =>
       this.connectionHasWriteCapabilities() &&
       !this.operationInProgress() &&
+      this.parseInteger(this.targetAddress(), 1) !== null &&
       this.parseInteger(this.cvAddress(), 1) !== null &&
       this.parseInteger(this.cvValue(), 0) !== null
   );
@@ -69,6 +92,19 @@ export class App implements OnInit {
   @ViewChild('writeDialog') private writeDialog?: ElementRef<HTMLDialogElement>;
   @ViewChild('connectionDialog')
   private connectionDialog?: ElementRef<HTMLDialogElement>;
+  @ViewChild('debugOutput')
+  private debugOutput?: ElementRef<HTMLTextAreaElement>;
+
+  constructor() {
+    effect(() => {
+      this.serialLogText();
+      const visible = this.debugLogVisible();
+      const textarea = this.debugOutput?.nativeElement;
+      if (visible && textarea) {
+        textarea.scrollTop = textarea.scrollHeight;
+      }
+    });
+  }
 
   ngOnInit(): void {
     const storedPortId = this.readStoredPortId();
@@ -115,25 +151,36 @@ export class App implements OnInit {
   }
 
   async read(): Promise<void> {
+    const address = this.parseInteger(this.targetAddress(), 1);
     const cv = this.parseInteger(this.cvAddress(), 1);
-    if (cv !== null) {
+    if (address !== null && cv !== null) {
       this.cvValue.set('');
-      await this.session.readCv(cv);
+      await this.session.readCv(address, cv);
       const operation = this.session.operation();
-      if (operation.kind === 'read-success' && operation.cv === cv) {
+      if (
+        operation.kind === 'read-success' &&
+        operation.address === address &&
+        operation.cv === cv
+      ) {
         this.cvValue.set(String(operation.value));
       }
     }
   }
 
   requestWrite(): void {
+    const address = this.parseInteger(this.targetAddress(), 1);
     const cv = this.parseInteger(this.cvAddress(), 1);
     const value = this.parseInteger(this.cvValue(), 0);
-    if (cv === null || value === null || !this.connectionHasWriteCapabilities()) {
+    if (
+      address === null ||
+      cv === null ||
+      value === null ||
+      !this.connectionHasWriteCapabilities()
+    ) {
       return;
     }
 
-    this.pendingWrite.set({ cv, value });
+    this.pendingWrite.set({ address, cv, value });
     this.writeDialog?.nativeElement.showModal();
   }
 
@@ -147,7 +194,11 @@ export class App implements OnInit {
     this.writeDialog?.nativeElement.close();
     this.pendingWrite.set(null);
     if (pending) {
-      await this.session.writeCv(pending.cv, pending.value);
+      await this.session.writeCv(
+        pending.address,
+        pending.cv,
+        pending.value
+      );
     }
   }
 

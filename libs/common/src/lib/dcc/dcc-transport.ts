@@ -13,6 +13,11 @@ export interface DccConnectionInfo {
   message?: string;
 }
 
+export interface SerialLogMessage {
+  direction: 'outgoing' | 'incoming';
+  message: string;
+}
+
 export type DccTransportErrorCode =
   | 'unavailable'
   | 'permission-denied'
@@ -38,9 +43,10 @@ export interface DccTransport {
   listPorts(): Promise<SerialPortInfo[]>;
   connect(portId: string): Promise<DccConnectionInfo>;
   disconnect(): Promise<void>;
-  readCv(cv: number): Promise<number>;
-  writeCv(cv: number, value: number): Promise<void>;
+  readCv(address: number, cv: number): Promise<number>;
+  writeCv(address: number, cv: number, value: number): Promise<void>;
   onDisconnected?(listener: (message: string) => void): () => void;
+  onSerialMessage?(listener: (message: SerialLogMessage) => void): () => void;
 }
 
 export const DCC_TRANSPORT = new InjectionToken<DccTransport>('DCC_TRANSPORT');

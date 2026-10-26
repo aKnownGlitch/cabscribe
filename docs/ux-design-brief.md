@@ -36,13 +36,15 @@ controls, or firmware workflows.
    The selected port is remembered in local storage for the next session.
 4. See the header change to **Service Mode** after the serial connection opens,
    and a clear connected/ready state in the main screen.
-5. Enter one CV address and press **Read**; on success, the returned value
+5. Enter a locomotive or accessory ID in the **Programming Target Address** section above the CV
+   editor; this is the target for the programming operation.
+6. Enter one CV address and press **Read**; on success, the returned value
    appears in the editable **Value** field.
-6. Edit the value if needed and press **Write** to review and explicitly
-   confirm the change for that same CV.
-7. See the write in progress, then the read-back value and a verified success,
+7. Edit the value if needed and press **Write** to review and explicitly
+   confirm the change for that same target and CV.
+8. See the write in progress, then the read-back value and a verified success,
    mismatch, or unverified/failure outcome.
-8. If disconnected or an operation fails, understand the state and choose
+9. If disconnected or an operation fails, understand the state and choose
    whether to reconnect or retry. Never retry a write automatically.
 
 ## 4. Figma screens and states
@@ -60,6 +62,10 @@ one primary application screen rather than separate pages.
   and **Write** buttons; unavailable until the connection is ready, or with a
   clear prompt directing the user to connect first.
 - Helpful state for device discovery failure or unavailable permissions.
+- Show the **Programming Target Address** section above the CV editor with one
+  **Locomotive or Accessory ID** field. Require a positive whole number before
+  enabling a CV operation; apply approved DCC/NMRA address limits when they
+  are established.
 
 ### A1. Serial connection settings dialog
 
@@ -79,6 +85,9 @@ one primary application screen rather than separate pages.
 - Programming context identified as **Service Mode**.
 - One shared single-CV form with CV address and Value fields and **Read** and
   **Write** actions.
+- Place a **Programming Target Address** section directly above the CV editor. The entered
+  Locomotive or Accessory ID is the programming target and applies to both
+  Read and Write.
 - A successful read places the returned value in the editable Value field.
 - Writing uses the current CV address and edited Value field, then requires
   confirmation before sending.
@@ -88,26 +97,32 @@ one primary application screen rather than separate pages.
 ### C. Write review and confirmation
 
 - Show the exact CV address and proposed value before sending.
+- Include the selected Locomotive or Accessory ID in the confirmation.
 - Require an explicit confirmation action; make cancellation easy and safe.
 - Make clear that writing changes decoder behavior and that CabScribe will
   read the CV back to verify the result.
 
-### D. Operation result states
+### D. Serial debug output
 
-Provide visually distinct, accessible states for:
+- Replace the latest-operation result panel with a read-only serial log.
+- Provide an accessible toggle switch to show or hide the complete debug
+  section; show it by default.
+- Let the log fill the remaining vertical space in the application window and
+  scroll independently when its contents exceed the available space; keep the
+  newest traffic in view as messages arrive.
+- Prefix actual CabScribe-to-device serial writes with `CS>` and
+  device-to-CabScribe serial input with `DC<`; do not log attempted/simulated
+  writes as transmitted messages.
+- Keep the log session-only; do not persist serial traffic to local storage or
+  operation history.
+- Display only traffic actually observed on the serial connection. Do not
+  synthesize protocol messages or imply CV support before the protocol is
+  implemented.
 
-- Read succeeded, with requested CV and returned value.
-- Write verified: read-back matches the requested value.
-- Write mismatch: show requested and read-back values without implying success.
-- Write unverified: write may have been sent, but read-back could not confirm it.
-- Read/write rejected or unsupported.
-- Operation timed out.
-- Device disconnected during an operation; outcome is unknown where applicable.
-- Invalid CV address/value; validation feedback before transmission.
-
-For all failure states, provide a useful next action where known. Do not style
-an unknown or unverified result as success. Do not trigger another write
-automatically.
+Read results populate the editable Value field. Invalid CV input, connection
+failures, and unsupported operations should remain understandable through
+field validation, connection status, and available operation feedback; never
+automatically repeat a write.
 
 ### E. No-device and permission/error variants
 
@@ -127,12 +142,16 @@ implementation and supported distribution targets are decided.
 - Clearly associate labels, units/ranges, and validation messages with each
   field. Exact CV limits and validation language must follow the approved NMRA
   baseline and should not be invented in the mockups.
+- Keep the Address and Configuration Variable sections concise: use field
+  labels and placeholders without descriptive subtitles or repeated helper
+  text beneath the inputs. Keep write-verification guidance in the
+  confirmation dialog.
 - Do not silently alter, clamp, or substitute entered addresses or values.
 - Disable or gate actions when disconnected, an operation is in progress, or
   required inputs are invalid; explain why an action is unavailable.
-- Keep one active CV address and editable value visible across read, write
-  confirmation, and result feedback. Populate the value field after a
-  successful read.
+- Keep the target Locomotive or Accessory ID, one active CV address, and
+  editable value visible across read and write confirmation. Populate the
+  value field after a successful read.
 - Make it clear that only the current operation is shown; there is no saved
   operation history in the initial release.
 - Include concise instructions for recovering from connection and operation
@@ -146,8 +165,8 @@ implementation and supported distribution targets are decided.
   keyboard-operable dialogs and controls.
 - Use readable typography, strong contrast, adequately sized controls, and
   persistent labels rather than placeholder-only field identification.
-- Design error, success, disabled, and in-progress states as intentionally as
-  the default screen.
+- Design error, disabled, and in-progress states as intentionally as the
+  default screen. Make the serial debug output clearly read-only.
 - Follow the product's Angular Material implementation constraint, but the
   Figma visual language and component styling remain a design decision.
 
@@ -156,12 +175,12 @@ implementation and supported distribution targets are decided.
 - Desktop application shell and primary programming screen.
 - Connected/disconnected, device discovery, permission/error, and operation
   progress states.
-- Write confirmation and all key read/write result states.
+- Write confirmation and serial debug output visible/hidden states.
 - Clickable prototype for connect → read into the editable value field → edit
-  value → write confirmation → verified result, including at least one
-  error/recovery path.
+  value → write confirmation, including serial log input/output and at least
+  one error/recovery path.
 - Reusable component variants for connection status, input validation,
-  operation feedback, buttons, and confirmation dialog.
+  serial log toggle, buttons, and confirmation dialog.
 - Brief annotations for interaction behavior, keyboard/accessibility details,
   and responsive behavior at narrower desktop window widths.
 

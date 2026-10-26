@@ -37,30 +37,38 @@
   <main class="workspace">
     <section class="page-heading" aria-labelledby="page-title">
       <div>
-        <p class="eyebrow">DECODER CONFIGURATION</p>
-        <h1 id="page-title">Read or write a CV</h1>
-        <p class="intro">
-          Work with one Configuration Variable at a time. Writes are read back
-          before they can be reported as verified.
-        </p>
+        <h1 id="page-title">Read or write a configuration variable</h1>
       </div>
-      <div class="session-note">
-        <span class="session-note-dot" aria-hidden="true"></span>
-        <span>No operation history is saved</span>
+    </section>
+
+    <section class="operation-card address-card" aria-labelledby="target-address-title">
+      <div class="card-heading">
+        <div>
+          <h2 id="target-address-title">Programming Target Address</h2>
+        </div>
       </div>
+      <mat-form-field appearance="outline" class="address-field">
+        <mat-label>Locomotive or Accessory ID</mat-label>
+        <input
+          matInput
+          type="number"
+          inputmode="numeric"
+          min="1"
+          step="1"
+          [ngModel]="targetAddress()"
+          (ngModelChange)="targetAddress.set($event)"
+          [ngModelOptions]="{ standalone: true }"
+          placeholder="Enter an address"
+        />
+      </mat-form-field>
     </section>
 
     <section class="operation-card" aria-labelledby="cv-editor-title">
       <div class="card-heading">
         <div>
-          <p class="card-kicker">DECODER CONFIGURATION</p>
           <h2 id="cv-editor-title">Configuration Variable</h2>
         </div>
       </div>
-      <p class="card-description">
-        Read a CV into the value field, edit it if needed, then write the value
-        back to the same CV.
-      </p>
 
       <div class="cv-fields">
         <mat-form-field appearance="outline">
@@ -74,12 +82,8 @@
             [ngModel]="cvAddress()"
             (ngModelChange)="cvAddress.set($event)"
             [ngModelOptions]="{ standalone: true }"
-            aria-describedby="cv-address-help"
             placeholder="Enter a CV address"
           />
-          <mat-hint id="cv-address-help">
-            Enter a whole-number CV address.
-          </mat-hint>
         </mat-form-field>
         <mat-form-field appearance="outline">
           <mat-label>Value</mat-label>
@@ -92,19 +96,11 @@
             [ngModel]="cvValue()"
             (ngModelChange)="cvValue.set($event)"
             [ngModelOptions]="{ standalone: true }"
-            aria-describedby="cv-value-help"
             placeholder="Read or enter a value"
           />
-          <mat-hint id="cv-value-help">
-            Read the current value or enter a new whole-number value.
-          </mat-hint>
         </mat-form-field>
       </div>
 
-      <p class="verification-note">
-        Every write is read back. A mismatch or unreadable result is never
-        shown as verified.
-      </p>
       <div class="operation-actions">
         <button
           mat-stroked-button
@@ -127,11 +123,25 @@
       </div>
     </section>
 
-    <section class="result-panel" aria-labelledby="result-title">
-      <div class="result-heading">
+    <div class="debug-toggle-row">
+      <label class="debug-toggle">
+        <span>Show serial debug</span>
+        <input
+          type="checkbox"
+          role="switch"
+          [ngModel]="debugLogVisible()"
+          (ngModelChange)="debugLogVisible.set($event)"
+          [ngModelOptions]="{ standalone: true }"
+        />
+        <span class="switch-track" aria-hidden="true"></span>
+      </label>
+    </div>
+    @if (debugLogVisible()) {
+    <section class="debug-panel" aria-labelledby="debug-title">
+      <div class="debug-heading">
         <div>
-          <p class="card-kicker">LATEST OPERATION</p>
-          <h2 id="result-title">Result</h2>
+          <p class="card-kicker">SERIAL MONITOR</p>
+          <h2 id="debug-title">Debug output</h2>
         </div>
         @if (
           session.operation().kind === 'reading' ||
@@ -139,96 +149,25 @@
           session.operation().kind === 'verifying'
         ) {
           <mat-progress-spinner
-            diameter="22"
+            diameter="20"
             mode="indeterminate"
             aria-label="Operation in progress"
           ></mat-progress-spinner>
         }
       </div>
-
-      @let operation = session.operation();
-      @switch (operation.kind) {
-        @case ('idle') {
-          <p class="result-empty">
-            Read or write a CV to see its result here.
-          </p>
-        }
-        @case ('reading') {
-          <p class="result-pending">
-            Reading CV {{ operation.cv }}…
-          </p>
-        }
-        @case ('read-success') {
-          <div class="result-message success" role="status" aria-live="polite">
-            <span class="result-symbol" aria-hidden="true">✓</span>
-            <p>CV {{ operation.cv }} was read. <strong>Value: {{ operation.value }}</strong></p>
-          </div>
-        }
-        @case ('read-failure') {
-          <div class="result-message failure" role="alert">
-            <span class="result-symbol" aria-hidden="true">!</span>
-            <p>Could not read CV {{ operation.cv }}. {{ operation.message }}</p>
-          </div>
-        }
-        @case ('writing') {
-          <p class="result-pending">
-            Writing {{ operation.value }} to CV {{ operation.cv }}…
-          </p>
-        }
-        @case ('verifying') {
-          <p class="result-pending">
-            Reading CV {{ operation.cv }} back to verify…
-          </p>
-        }
-        @case ('write-verified') {
-          <div class="result-message success" role="status" aria-live="polite">
-            <span class="result-symbol" aria-hidden="true">✓</span>
-            <p>
-              CV {{ operation.cv }} is verified at
-              <strong>{{ operation.value }}</strong>.
-            </p>
-          </div>
-        }
-        @case ('write-mismatch') {
-          <div class="result-message warning" role="alert">
-            <span class="result-symbol" aria-hidden="true">!</span>
-            <p>
-              CV {{ operation.cv }} did not verify. Requested
-              <strong>{{ operation.requestedValue }}</strong>; read back
-              <strong>{{ operation.readBackValue }}</strong>.
-            </p>
-          </div>
-        }
-        @case ('write-unverified') {
-          <div class="result-message warning" role="alert">
-            <span class="result-symbol" aria-hidden="true">!</span>
-            <p>
-              CV {{ operation.cv }} was written but could not be verified.
-              {{ operation.message }}
-            </p>
-          </div>
-        }
-        @case ('write-failure') {
-          <div class="result-message failure" role="alert">
-            <span class="result-symbol" aria-hidden="true">!</span>
-            <p>
-              The write to CV {{ operation.cv }} failed.
-              {{ operation.message }}
-            </p>
-          </div>
-        }
-        @case ('write-unknown') {
-          <div class="result-message warning" role="alert">
-            <span class="result-symbol" aria-hidden="true">?</span>
-            <p>
-              The outcome of the write to CV {{ operation.cv }} is unknown.
-              {{ operation.message }} Check the decoder before deciding
-              whether to retry.
-            </p>
-          </div>
-        }
-      }
+      <textarea
+        #debugOutput
+        id="serial-debug-output"
+        class="debug-output"
+        aria-label="Serial input and output log"
+        readonly
+        wrap="off"
+        spellcheck="false"
+        [value]="serialLogText()"
+        placeholder="Serial input and output will appear here when available."
+      ></textarea>
     </section>
+    }
   </main>
 
   <footer class="app-footer">
@@ -360,8 +299,14 @@
         before continuing.
       </p>
       <div class="change-summary">
-        <span>CV {{ change.cv }}</span>
-        <strong>{{ change.value }}</strong>
+        <div>
+          <span>Locomotive or Accessory ID</span>
+          <strong>{{ change.address }}</strong>
+        </div>
+        <div>
+          <span>CV {{ change.cv }}</span>
+          <strong>{{ change.value }}</strong>
+        </div>
       </div>
       <p class="dialog-note">
         CabScribe will read the CV back. The write will only be marked verified

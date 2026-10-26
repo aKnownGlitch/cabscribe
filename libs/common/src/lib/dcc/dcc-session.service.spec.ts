@@ -4,6 +4,7 @@ import {
   DCC_TRANSPORT,
   DccTransport,
   DccTransportError,
+  SerialLogMessage,
   SerialPortInfo,
 } from './dcc-transport';
 
@@ -38,13 +39,35 @@ describe('DccSessionService', () => {
   it('reports a read result for the requested CV', async () => {
     const { session } = await createSession();
 
-    await session.readCv(29);
+    await session.readCv(3, 29);
 
     expect(session.operation()).toEqual({
       kind: 'read-success',
+      address: 3,
       cv: 29,
       value: 42,
     });
+  });
+
+  it('records incoming and outgoing serial messages for the debug view', async () => {
+    let publishMessage: ((message: SerialLogMessage) => void) | undefined;
+    const { session } = await createSession({
+      onSerialMessage: (listener) => {
+        publishMessage = listener;
+        return () => undefined;
+      },
+    });
+
+    if (!publishMessage) {
+      throw new Error('Serial message listener was not registered.');
+    }
+    publishMessage({ direction: 'outgoing', message: '<READ 29>' });
+    publishMessage({ direction: 'incoming', message: '<r 29|42>' });
+
+    expect(session.serialLog()).toEqual([
+      { direction: 'outgoing', message: '<READ 29>' },
+      { direction: 'incoming', message: '<r 29|42>' },
+    ]);
   });
 
   it('keeps CV operations disabled when the connection lacks capabilities', async () => {
@@ -57,16 +80,18 @@ describe('DccSessionService', () => {
       }),
     });
 
-    await session.readCv(29);
+    await session.readCv(3, 29);
     expect(session.operation()).toEqual({
       kind: 'read-failure',
+      address: 3,
       cv: 29,
       message: 'Service Mode CV reading is not available on this connection.',
     });
 
-    await session.writeCv(29, 77);
+    await session.writeCv(3, 29, 77);
     expect(session.operation()).toEqual({
       kind: 'write-failure',
+      address: 3,
       cv: 29,
       value: 77,
       message:
@@ -81,14 +106,15 @@ describe('DccSessionService', () => {
       readCv: vi.fn().mockResolvedValue(77),
     });
 
-    await session.writeCv(29, 77);
+    await session.writeCv(3, 29, 77);
 
     expect(transport.writeCv).toHaveBeenCalledOnce();
-    expect(transport.writeCv).toHaveBeenCalledWith(29, 77);
+    expect(transport.writeCv).toHaveBeenCalledWith(3, 29, 77);
     expect(transport.readCv).toHaveBeenCalledOnce();
-    expect(transport.readCv).toHaveBeenCalledWith(29);
+    expect(transport.readCv).toHaveBeenCalledWith(3, 29);
     expect(session.operation()).toEqual({
       kind: 'write-verified',
+      address: 3,
       cv: 29,
       value: 77,
     });
@@ -99,10 +125,11 @@ describe('DccSessionService', () => {
       readCv: vi.fn().mockResolvedValue(12),
     });
 
-    await session.writeCv(29, 77);
+    await session.writeCv(3, 29, 77);
 
     expect(session.operation()).toEqual({
       kind: 'write-mismatch',
+      address: 3,
       cv: 29,
       requestedValue: 77,
       readBackValue: 12,
@@ -116,10 +143,11 @@ describe('DccSessionService', () => {
         .mockRejectedValue(new DccTransportError('timeout', 'Read timed out.')),
     });
 
-    await session.writeCv(29, 77);
+    await session.writeCv(3, 29, 77);
 
     expect(session.operation()).toEqual({
       kind: 'write-unverified',
+      address: 3,
       cv: 29,
       value: 77,
       message: 'Read timed out.',
@@ -137,27 +165,29 @@ describe('DccSessionService', () => {
       ),
     });
 
-    await session.writeCv(29, 77);
+    await session.writeCv(3, 29, 77);
 
     expect(session.operation()).toEqual({
       kind: 'write-unknown',
+      address: 3,
       cv: 29,
       value: 77,
       message: 'Connection lost during write.',
     });
     expect(transport.writeCv).toHaveBeenCalledOnce();
-    expect(transport.writeCv).toHaveBeenCalledWith(29, 77);
+    expect(transport.writeCv).toHaveBeenCalledWith(3, 29, 77);
     expect(transport.readCv).not.toHaveBeenCalled();
   });
 
   it('does not send a write while disconnected', async () => {
     const { session, transport } = await createSession();
     await session.disconnect();
-    await session.writeCv(29, 77);
+    await session.writeCv(3, 29, 77);
 
     expect(transport.writeCv).not.toHaveBeenCalled();
     expect(session.operation()).toEqual({
       kind: 'write-failure',
+      address: 3,
       cv: 29,
       value: 77,
       message: 'Connect to a command station before writing a CV.',

@@ -35,8 +35,24 @@ describe('App', () => {
       )?.getAttribute('aria-label')
     ).toBe('Serial connection settings');
     expect(compiled.querySelector('#connectionDialog')).not.toBeNull();
+    expect(compiled.textContent).toContain('Locomotive or Accessory ID');
+    const debugOutput = compiled.querySelector<HTMLTextAreaElement>(
+      '#serial-debug-output'
+    );
+    expect(debugOutput?.readOnly).toBe(true);
+    expect(compiled.querySelector('input[role="switch"]')).not.toBeNull();
     expect(compiled.textContent).not.toContain('Hardware connection');
-    expect(compiled.querySelector('h1')?.textContent).toContain('Read or write a CV');
+    expect(compiled.querySelector('h1')?.textContent).toBe(
+      'Read or write a configuration variable'
+    );
+    expect(compiled.querySelector('.page-heading .intro')).toBeNull();
+    expect(
+      compiled.querySelector(
+        '.operation-card .card-description, .operation-card mat-hint, .verification-note'
+      )
+    ).toBeNull();
+    expect(compiled.textContent).not.toContain('DECODER CONFIGURATION');
+    expect(compiled.textContent).not.toContain('No operation history is saved');
     expect(compiled.textContent).toContain(
       'Serial communication is not configured in this build.'
     );
@@ -136,7 +152,8 @@ describe('App', () => {
       readCv: vi
         .fn()
         .mockResolvedValueOnce(42)
-        .mockRejectedValueOnce(new Error('Read failed.')),
+        .mockRejectedValueOnce(new Error('Read failed.'))
+        .mockResolvedValueOnce(77),
       writeCv: vi.fn().mockResolvedValue(undefined),
     };
     TestBed.overrideProvider(DCC_TRANSPORT, { useValue: transport });
@@ -153,10 +170,11 @@ describe('App', () => {
     Object.defineProperty(connectionDialog, 'close', { value: vi.fn() });
     await fixture.componentInstance.connect();
 
+    fixture.componentInstance.targetAddress.set('3');
     fixture.componentInstance.cvAddress.set('29');
     await fixture.componentInstance.read();
     expect(fixture.componentInstance.cvValue()).toBe('42');
-    expect(transport.readCv).toHaveBeenCalledWith(29);
+    expect(transport.readCv).toHaveBeenCalledWith(3, 29);
 
     fixture.componentInstance.cvValue.set('99');
     await fixture.componentInstance.read();
@@ -170,15 +188,52 @@ describe('App', () => {
       throw new Error('Write confirmation dialog was not rendered.');
     }
     const showWriteDialog = vi.fn();
+    const closeWriteDialog = vi.fn();
     Object.defineProperty(writeDialog, 'showModal', {
       value: showWriteDialog,
+    });
+    Object.defineProperty(writeDialog, 'close', {
+      value: closeWriteDialog,
     });
     fixture.componentInstance.requestWrite();
 
     expect(showWriteDialog).toHaveBeenCalledOnce();
     expect(fixture.componentInstance.pendingWrite()).toEqual({
+      address: 3,
       cv: 29,
       value: 77,
     });
+
+    await fixture.componentInstance.confirmWrite();
+    expect(transport.writeCv).toHaveBeenCalledWith(3, 29, 77);
+    expect(transport.readCv).toHaveBeenLastCalledWith(3, 29);
+  });
+
+  it('formats incoming and outgoing serial data in the visible debug log', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    fixture.componentInstance.session.serialLog.set([
+      { direction: 'outgoing', message: '<READ 29>' },
+      { direction: 'incoming', message: '<r 29|42>\r\n' },
+    ]);
+    fixture.detectChanges();
+
+    const debugOutput = (
+      fixture.nativeElement as HTMLElement
+    ).querySelector<HTMLTextAreaElement>('#serial-debug-output');
+    expect(debugOutput?.value).toBe('CS> <READ 29>\nDC< <r 29|42>');
+
+    fixture.componentInstance.debugLogVisible.set(false);
+    fixture.detectChanges();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '.debug-panel'
+      )
+    ).toBeNull();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        'input[role="switch"]'
+      )
+    ).not.toBeNull();
   });
 });

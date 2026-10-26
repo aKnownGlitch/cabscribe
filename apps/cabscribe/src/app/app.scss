@@ -6,7 +6,8 @@
 
 .app-shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 620px;
   flex-direction: column;
 }
 
@@ -104,6 +105,10 @@
 }
 
 .workspace {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
   width: min(100% - 64px, 1200px);
   margin: 0 auto;
   padding: 48px 0 36px;
@@ -167,7 +172,7 @@ h1 {
 }
 
 .operation-card,
-.result-panel {
+.debug-panel {
   border: 1px solid #e4e9ec;
   border-radius: 14px;
   background: #fff;
@@ -175,7 +180,7 @@ h1 {
 }
 
 .card-heading h2,
-.result-heading h2 {
+.debug-heading h2 {
   margin-bottom: 4px;
   color: #1d3340;
   font-size: 15px;
@@ -205,6 +210,127 @@ h1 {
   margin-top: 20px;
 }
 
+.address-card {
+  margin-top: 20px;
+}
+
+.address-field {
+  width: min(100%, 420px);
+  margin-bottom: -1.25em;
+}
+
+.debug-panel {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  margin-top: 20px;
+  padding: 18px 20px 20px;
+}
+
+.debug-heading {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.debug-heading > div:first-child {
+  margin-right: auto;
+}
+
+.debug-heading .card-kicker {
+  margin-bottom: 4px;
+}
+
+.debug-heading h2 {
+  margin-bottom: 0;
+  font-size: 15px;
+}
+
+.debug-toggle-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.debug-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #536873;
+  cursor: pointer;
+  font-size: 12px;
+  user-select: none;
+}
+
+.debug-toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.switch-track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #b8c2c7;
+  transition: background-color 120ms ease;
+}
+
+.switch-track::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  content: '';
+  transition: transform 120ms ease;
+}
+
+.debug-toggle input:checked + .switch-track {
+  background: #176b68;
+}
+
+.debug-toggle input:checked + .switch-track::after {
+  transform: translateX(16px);
+}
+
+.debug-toggle input:focus-visible + .switch-track {
+  outline: 3px solid rgb(23 107 104 / 28%);
+  outline-offset: 2px;
+}
+
+.debug-output {
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  resize: none;
+  overflow: auto;
+  border: 1px solid #dce4e7;
+  border-radius: 9px;
+  padding: 12px 14px;
+  background: #17252d;
+  color: #d9e8e9;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  tab-size: 2;
+  white-space: pre;
+}
+
+.debug-output:focus-visible {
+  outline: 3px solid rgb(23 107 104 / 28%);
+  outline-offset: 2px;
+}
+
 .card-heading {
   display: flex;
   align-items: center;
@@ -221,24 +347,10 @@ h1 {
   font-size: 18px;
 }
 
-.card-description {
-  margin-bottom: 20px;
-  color: #697983;
-  font-size: 13px;
-  line-height: 1.55;
-}
-
 .cv-fields {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
-}
-
-.verification-note {
-  margin: 0 0 15px;
-  color: #73818a;
-  font-size: 11px;
-  line-height: 1.5;
 }
 
 .operation-actions {
@@ -255,77 +367,6 @@ h1 {
 .read-button {
   border-color: #cbd8dc !important;
   color: #31515d !important;
-}
-
-.result-panel {
-  margin-top: 20px;
-  padding: 20px 23px;
-}
-
-.result-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
-}
-
-.result-heading .card-kicker {
-  margin-bottom: 5px;
-}
-
-.result-heading h2 {
-  margin-bottom: 0;
-  font-size: 15px;
-}
-
-.result-empty,
-.result-pending {
-  margin-bottom: 0;
-  color: #74828b;
-  font-size: 13px;
-}
-
-.result-message {
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  margin: 0;
-  padding: 13px 14px;
-  border-radius: 9px;
-  font-size: 13px;
-  line-height: 1.55;
-}
-
-.result-message p {
-  margin: 0;
-}
-
-.result-message.success {
-  background: #edf7f1;
-  color: #245d43;
-}
-
-.result-message.warning {
-  background: #fff6e8;
-  color: #79591d;
-}
-
-.result-message.failure {
-  background: #fff0ee;
-  color: #8a3f34;
-}
-
-.result-symbol {
-  display: grid;
-  width: 20px;
-  height: 20px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid currentColor;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: 700;
 }
 
 .app-footer {
@@ -405,6 +446,7 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 14px;
   margin: 20px 0 14px;
   padding: 15px;
   border: 1px solid #e3e9ec;
@@ -412,6 +454,11 @@ h1 {
   background: #f7f9fa;
   color: #425762;
   font-size: 13px;
+}
+
+.change-summary > div {
+  display: grid;
+  gap: 5px;
 }
 
 .change-summary strong {
@@ -441,6 +488,11 @@ h1 {
 }
 
 @media (max-width: 760px) {
+  .app-shell {
+    height: auto;
+    min-height: 100vh;
+  }
+
   .topbar {
     padding: 0 20px;
   }
@@ -487,8 +539,21 @@ h1 {
   }
 
   .operation-card,
-  .result-panel {
+  .debug-panel {
     padding: 17px;
+  }
+
+  .debug-heading {
+    gap: 10px;
+  }
+
+  .debug-toggle > span:first-child {
+    position: absolute;
+    overflow: hidden;
+    width: 1px;
+    height: 1px;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
   }
 
   .cv-fields {
