@@ -10,11 +10,11 @@ Configuration Variables (CVs). It connects to a supported DCC command station
 or programming interface through a serial port on the user's device and provides
 a clear, safe workflow for inspecting and changing decoder parameters.
 
-The application is intended to use Capacitor so that a shared client experience
-can be packaged for the initial Linux release. macOS is an additional UI testing
-environment, not an initial release target. Serial-port access and packaging
-must be validated for each platform; Capacitor itself does not define the DCC
-interface protocol or guarantee a serial-port API on every platform.
+The initial application is a Linux desktop app with an Angular client hosted by
+Electron. Serial access belongs in Electron's main process and is exposed to
+the client through a narrowly scoped, context-isolated bridge. macOS is an
+additional UI testing environment, not an initial release target. Capacitor is
+not used for the initial Linux desktop release.
 
 ## 2. Problem and opportunity
 
@@ -181,9 +181,9 @@ thresholds remain to be agreed during implementation planning.
   dependencies focused on Nx workspace needs.
 - Do not add server-side rendering or example applications unless explicitly
   approved.
-- Capacitor is the proposed cross-platform runtime. The serial connection
-  capability may require a native plugin or platform-specific implementation;
-  this PRD does not select a plugin or prescribe its implementation.
+- The Linux desktop shell is Electron with an Angular renderer. Serial access
+  shall use a Node serial library in the Electron main process, with context
+  isolation enabled and Node integration disabled in the renderer.
 - The initial release targets Linux and uses side-loaded distribution;
   macOS is for UI testing only. Service Mode and single-CV read/write are the
   initial programming scope, writes require read-back verification, and
@@ -194,6 +194,8 @@ thresholds remain to be agreed during implementation planning.
 ### Decisions
 
 - **Initial hardware/interface:** DCC-EX command station.
+- **Desktop runtime:** Electron hosting the Angular application; Capacitor is
+  not used for the initial Linux desktop target.
 - **Release platform and testing:** Linux is the initial release platform;
   macOS is used for UI testing.
 - **Distribution:** Side-loaded package for the initial release.
@@ -206,9 +208,9 @@ thresholds remain to be agreed during implementation planning.
 
 ### Remaining questions
 
-1. Which Linux distributions/versions and CPU architectures must the first
-   package support?
-2. What Linux package format(s) are required for side-loading?
+1. Which Ubuntu/Debian versions are the release targets, and does “x86” mean
+   64-bit x86_64/amd64? The initial package work assumes x86_64/amd64.
+2. Is a side-loadable Debian `.deb` package the required format?
 3. Which DCC-EX hardware configuration and serial connection protocol are the
    acceptance-test target?
 4. Which CVs and test setup should be used to validate Service Mode read and
@@ -219,5 +221,7 @@ thresholds remain to be agreed during implementation planning.
 ## 11. References
 
 - [NMRA Standards and Recommended Practices](https://www.nmra.org/index-nmra-standards-and-recommended-practices) — includes the DCC section, including S-9.2 DCC Communications Standard, S-9.2.2 DCC Configuration Variables, and S-9.2.3 Service Mode Programming. Consult the current NMRA documents directly when defining protocol behavior and validation.
-- [Capacitor documentation](https://capacitorjs.com/docs) — describes Capacitor's native runtime and platform APIs.
-- [Creating Capacitor plugins](https://capacitorjs.com/docs/plugins/creating-plugins) — documents the plugin model for bridging JavaScript to native APIs.
+- [Electron security guidance](https://www.electronjs.org/docs/latest/tutorial/security) — guidance for secure Electron applications.
+- [Node SerialPort supported environments](https://serialport.io/docs/guide-platform-support/) — supported Node/Electron versions and platform/architecture matrix.
+- [DCC-EX serial command list](https://dcc-ex.com/mkdocs-test/reference/serial-commands/serial-command-list/) — generated reference for native serial commands.
+- [DCC-EX serial monitor](https://dcc-ex.com/reference/software/diagnostic-tools/serial-monitor.html) — connection configuration and serial monitor guidance.

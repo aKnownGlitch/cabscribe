@@ -1,0 +1,23 @@
+{
+  "name": "cabscribe-desktop",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "root": "apps/cabscribe-desktop",
+  "sourceRoot": "apps/cabscribe-desktop/src",
+  "targets": {
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "nx run cabscribe:build && npm run start --workspace=@cabscribe/desktop"
+      }
+    },
+    "package": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/packages"],
+      "options": {
+        "command": "nx run cabscribe:build:production && npm run package:linux --workspace=@cabscribe/desktop"
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@cabscribe/desktop",
+  "version": "0.0.1",
+  "private": true,
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "package:linux": "electron-builder --config electron-builder.yml --linux deb --x64"
+  },
+  "dependencies": {
+    "serialport": "13.0.0"
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-builder": "26.18.1"
+  }
+}

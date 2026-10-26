@@ -1,0 +1,406 @@
+<div class="app-shell">
+  @let connection = session.connection();
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="CabScribe home">
+      <span class="brand-mark" aria-hidden="true">C</span>
+      <span class="brand-name">CabScribe</span>
+    </a>
+    <span class="product-context">DCC decoder programmer</span>
+    <span class="mode-chip">Service Mode</span>
+  </header>
+
+  <main class="workspace">
+    <section class="page-heading" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">DECODER CONFIGURATION</p>
+        <h1 id="page-title">Read or write a CV</h1>
+        <p class="intro">
+          Work with one Configuration Variable at a time. Writes are read back
+          before they can be reported as verified.
+        </p>
+      </div>
+      <div class="session-note">
+        <span class="session-note-dot" aria-hidden="true"></span>
+        <span>No operation history is saved</span>
+      </div>
+    </section>
+
+    <section class="connection-panel" aria-labelledby="connection-title">
+      <div class="connection-main">
+        <div
+          class="connection-indicator"
+          [class.is-connected]="isConnected()"
+          [class.is-busy]="
+            connection.status === 'scanning' ||
+            connection.status === 'connecting'
+          "
+          aria-hidden="true"
+        >
+          <span></span>
+        </div>
+        <div class="connection-copy">
+          <h2 id="connection-title">Hardware connection</h2>
+          <p
+            class="connection-state"
+            [class.is-connected]="isConnected()"
+            role="status"
+            aria-live="polite"
+          >
+            {{ connectionLabel() }}
+            @if (connection.status === 'connected') {
+              <span class="connection-device">
+                · {{ connection.port.label }}
+              </span>
+            }
+          </p>
+        </div>
+      </div>
+
+      <div class="connection-controls">
+        @if (!isConnected()) {
+          <mat-form-field appearance="outline" class="port-select">
+            <mat-label>Serial port</mat-label>
+            <mat-select
+              [value]="selectedPortId()"
+              (selectionChange)="selectedPortId.set($event.value)"
+              [disabled]="session.ports().length === 0"
+            >
+              @for (port of session.ports(); track port.id) {
+                <mat-option [value]="port.id">{{ port.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <button
+            mat-flat-button
+            type="button"
+            class="connect-button"
+            (click)="connect()"
+            [disabled]="!canConnect()"
+          >
+            @if (connection.status === 'connecting') {
+              <mat-progress-spinner
+                diameter="17"
+                mode="indeterminate"
+                aria-label="Connecting"
+              ></mat-progress-spinner>
+            } @else {
+              Connect
+            }
+          </button>
+        } @else {
+          <button
+            mat-stroked-button
+            type="button"
+            class="disconnect-button"
+            (click)="disconnect()"
+            [disabled]="operationInProgress()"
+          >
+            Disconnect
+          </button>
+        }
+        <button
+          mat-button
+          type="button"
+          class="refresh-button"
+          (click)="refreshPorts()"
+          [disabled]="
+            connection.status === 'scanning' ||
+            connection.status === 'connecting' ||
+            isConnected() ||
+            operationInProgress()
+          "
+        >
+          Refresh
+        </button>
+      </div>
+
+      @if (
+        connection.status === 'unavailable' ||
+        connection.status === 'error'
+      ) {
+        <p class="connection-message" role="alert">
+          {{ connection.message }}
+        </p>
+      } @else if (
+        connection.status === 'disconnected' &&
+        session.ports().length === 0
+      ) {
+        <p class="connection-message">
+          No serial ports are available. Connect a DCC-EX command station and
+          refresh the device list.
+        </p>
+      } @else if (
+        connection.status === 'connected' &&
+        (!connection.capabilities.serviceModeRead ||
+          !connection.capabilities.serviceModeWrite)
+      ) {
+        <p class="connection-message">
+          {{
+            connection.message ||
+              'The serial port is open, but DCC-EX Service Mode operations are not available yet.'
+          }}
+        </p>
+      } @else if (connection.status === 'connected') {
+        <p class="connection-message">
+          Ready for Service Mode CV operations.
+        </p>
+      }
+    </section>
+
+    <section class="operations-grid" aria-label="CV operations">
+      <article class="operation-card" aria-labelledby="read-title">
+        <div class="card-heading">
+          <div class="card-icon read-icon" aria-hidden="true">R</div>
+          <div>
+            <p class="card-kicker">INSPECT</p>
+            <h2 id="read-title">Read a CV</h2>
+          </div>
+        </div>
+        <p class="card-description">
+          Read the current value from the connected decoder.
+        </p>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>CV address</mat-label>
+          <input
+            matInput
+            type="number"
+            inputmode="numeric"
+            min="1"
+            step="1"
+            [ngModel]="readAddress()"
+            (ngModelChange)="readAddress.set($event)"
+            [ngModelOptions]="{ standalone: true }"
+            aria-describedby="read-cv-help"
+            placeholder="Enter a CV address"
+          />
+          <mat-hint id="read-cv-help">
+            Enter a whole-number CV address.
+          </mat-hint>
+        </mat-form-field>
+
+        <button
+          mat-flat-button
+          type="button"
+          class="operation-button"
+          (click)="read()"
+          [disabled]="!canRead()"
+        >
+          Read value
+        </button>
+      </article>
+
+      <article class="operation-card write-card" aria-labelledby="write-title">
+        <div class="card-heading">
+          <div class="card-icon write-icon" aria-hidden="true">W</div>
+          <div>
+            <p class="card-kicker">CHANGE</p>
+            <h2 id="write-title">Write a CV</h2>
+          </div>
+        </div>
+        <p class="card-description">
+          Review the change before sending it to the decoder.
+        </p>
+
+        <div class="write-fields">
+          <mat-form-field appearance="outline">
+            <mat-label>CV address</mat-label>
+            <input
+              matInput
+              type="number"
+              inputmode="numeric"
+              min="1"
+              step="1"
+              [ngModel]="writeAddress()"
+              (ngModelChange)="writeAddress.set($event)"
+              [ngModelOptions]="{ standalone: true }"
+              aria-label="CV address to write"
+              placeholder="CV"
+            />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>New value</mat-label>
+            <input
+              matInput
+              type="number"
+              inputmode="numeric"
+              min="0"
+              step="1"
+              [ngModel]="writeValue()"
+              (ngModelChange)="writeValue.set($event)"
+              [ngModelOptions]="{ standalone: true }"
+              aria-label="New CV value"
+              placeholder="Value"
+            />
+          </mat-form-field>
+        </div>
+
+        <p class="verification-note">
+          Every write is read back. A mismatch or unreadable result is never
+          shown as verified.
+        </p>
+        <button
+          mat-flat-button
+          type="button"
+          class="operation-button write-button"
+          (click)="requestWrite()"
+          [disabled]="!canWrite()"
+        >
+          Review write
+        </button>
+      </article>
+    </section>
+
+    <section class="result-panel" aria-labelledby="result-title">
+      <div class="result-heading">
+        <div>
+          <p class="card-kicker">LATEST OPERATION</p>
+          <h2 id="result-title">Result</h2>
+        </div>
+        @if (
+          session.operation().kind === 'reading' ||
+          session.operation().kind === 'writing' ||
+          session.operation().kind === 'verifying'
+        ) {
+          <mat-progress-spinner
+            diameter="22"
+            mode="indeterminate"
+            aria-label="Operation in progress"
+          ></mat-progress-spinner>
+        }
+      </div>
+
+      @let operation = session.operation();
+      @switch (operation.kind) {
+        @case ('idle') {
+          <p class="result-empty">
+            Read or write a CV to see its result here.
+          </p>
+        }
+        @case ('reading') {
+          <p class="result-pending">
+            Reading CV {{ operation.cv }}…
+          </p>
+        }
+        @case ('read-success') {
+          <div class="result-message success" role="status" aria-live="polite">
+            <span class="result-symbol" aria-hidden="true">✓</span>
+            <p>CV {{ operation.cv }} was read. <strong>Value: {{ operation.value }}</strong></p>
+          </div>
+        }
+        @case ('read-failure') {
+          <div class="result-message failure" role="alert">
+            <span class="result-symbol" aria-hidden="true">!</span>
+            <p>Could not read CV {{ operation.cv }}. {{ operation.message }}</p>
+          </div>
+        }
+        @case ('writing') {
+          <p class="result-pending">
+            Writing {{ operation.value }} to CV {{ operation.cv }}…
+          </p>
+        }
+        @case ('verifying') {
+          <p class="result-pending">
+            Reading CV {{ operation.cv }} back to verify…
+          </p>
+        }
+        @case ('write-verified') {
+          <div class="result-message success" role="status" aria-live="polite">
+            <span class="result-symbol" aria-hidden="true">✓</span>
+            <p>
+              CV {{ operation.cv }} is verified at
+              <strong>{{ operation.value }}</strong>.
+            </p>
+          </div>
+        }
+        @case ('write-mismatch') {
+          <div class="result-message warning" role="alert">
+            <span class="result-symbol" aria-hidden="true">!</span>
+            <p>
+              CV {{ operation.cv }} did not verify. Requested
+              <strong>{{ operation.requestedValue }}</strong>; read back
+              <strong>{{ operation.readBackValue }}</strong>.
+            </p>
+          </div>
+        }
+        @case ('write-unverified') {
+          <div class="result-message warning" role="alert">
+            <span class="result-symbol" aria-hidden="true">!</span>
+            <p>
+              CV {{ operation.cv }} was written but could not be verified.
+              {{ operation.message }}
+            </p>
+          </div>
+        }
+        @case ('write-failure') {
+          <div class="result-message failure" role="alert">
+            <span class="result-symbol" aria-hidden="true">!</span>
+            <p>
+              The write to CV {{ operation.cv }} failed.
+              {{ operation.message }}
+            </p>
+          </div>
+        }
+        @case ('write-unknown') {
+          <div class="result-message warning" role="alert">
+            <span class="result-symbol" aria-hidden="true">?</span>
+            <p>
+              The outcome of the write to CV {{ operation.cv }} is unknown.
+              {{ operation.message }} Check the decoder before deciding
+              whether to retry.
+            </p>
+          </div>
+        }
+      }
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <span>CabScribe</span>
+    <span>Local connection · No cloud account required</span>
+  </footer>
+</div>
+
+<dialog
+  #writeDialog
+  class="write-dialog"
+  aria-labelledby="confirm-title"
+  aria-describedby="confirm-description"
+>
+  @if (pendingWrite(); as change) {
+    <div class="dialog-content">
+      <p class="card-kicker">CONFIRM DECODER CHANGE</p>
+      <h2 id="confirm-title">Write this CV value?</h2>
+      <p id="confirm-description">
+        This changes the decoder configuration. Review the exact CV and value
+        before continuing.
+      </p>
+      <div class="change-summary">
+        <span>CV {{ change.cv }}</span>
+        <strong>{{ change.value }}</strong>
+      </div>
+      <p class="dialog-note">
+        CabScribe will read the CV back. The write will only be marked verified
+        if the value matches.
+      </p>
+      <div class="dialog-actions">
+        <button
+          mat-button
+          type="button"
+          class="cancel-button"
+          (click)="cancelWrite()"
+        >
+          Cancel
+        </button>
+        <button
+          mat-flat-button
+          type="button"
+          class="confirm-button"
+          (click)="confirmWrite()"
+        >
+          Confirm and write
+        </button>
+      </div>
+    </div>
+  }
+</dialog>

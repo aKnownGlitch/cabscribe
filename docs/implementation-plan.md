@@ -8,11 +8,12 @@
 
 ## 1. Plan objective
 
-Deliver an initial, side-loadable Linux desktop application for reading and
-writing one NMRA DCC decoder CV at a time, in Service Mode, through a DCC-EX
-command station over serial. A write is successful only after a read-back
-confirms the requested value. macOS is a UI testing environment, not a release
-target. The application must not store operation history.
+Deliver an initial, side-loadable Linux desktop application with an Angular UI
+hosted by Electron. It will read and write one NMRA DCC decoder CV at a time, in
+Service Mode, through a DCC-EX command station over serial. A write is
+successful only after a read-back confirms the requested value. macOS is a UI
+testing environment, not a release target. The application must not store
+operation history.
 
 This plan sequences the work, validation, and decision gates. It is not an
 implementation specification for an unconfirmed serial protocol or native
@@ -20,12 +21,14 @@ runtime.
 
 ## 2. Guiding constraints
 
-- Follow the supplied Nx project guidance: a self-contained Angular
-  application under `apps/`; shared UI/services in a common Angular library
-  under `libs/`; Angular Material; Core/Feature structure; SCSS; no SSR or
-  example application unless later approved.
+- Follow the supplied Nx project guidance: self-contained applications under
+  `apps/`; shared UI/services in a common Angular library under `libs/`; Angular
+  Material; Core/Feature structure; SCSS; no SSR or example application unless
+  later approved.
 - Keep the serial/DCC boundary behind a typed application-facing interface so
   the CV workflow is not coupled to a particular host runtime.
+- Keep Node serial access in Electron's main process. The Angular renderer must
+  not receive raw Node or unrestricted IPC access.
 - Do not report a write as successful without confirmed read-back. Do not
   automatically repeat a write after an uncertain outcome.
 - Implement only agreed NMRA-defined validation after recording the applicable
@@ -48,27 +51,27 @@ the full application architecture.
    and documented Service Mode read, write, and read-back behavior.
 2. Record the current NMRA revisions to be used for CV address/value
    validation and Service Mode behavior.
-3. Compare viable Linux desktop packaging approaches against the project
-   constraints. Capacitor's official targets are Android, iOS, and Web; confirm
-   whether the project will accept a third-party desktop host/platform or
-   choose another Linux desktop shell.
+3. Validate Electron plus Node SerialPort on the agreed Ubuntu/Debian target
+   and CPU architecture, including native dependency packaging.
 4. Prototype port discovery, explicit port selection/open/close, request and
    response handling, disconnection, and a safe read-back cycle on the agreed
    hardware.
-5. Verify package feasibility for the agreed Linux distribution(s) and
-   architecture(s), and confirm the macOS UI test workflow.
+5. Verify the side-loadable Debian package on agreed Linux versions and
+   confirm the macOS UI test workflow.
 
 **Exit criteria / decision gate**
 
-- A tested architecture decision names the Linux runtime/shell, serial API or
-  plugin, DCC-EX protocol source, and package format.
+- A tested architecture decision confirms Electron, Node SerialPort, secure
+  preload/IPC boundaries, DCC-EX protocol source, and package format.
 - A repeatable hardware-backed proof demonstrates port connection and at least
   one Service Mode read and verified write, or identifies a concrete blocker
   and a revised product decision.
 - Linux distribution/architecture scope and the DCC-EX test target are agreed.
 
-**Dependency:** User decisions listed in Section 5. Do not begin broad
-application scaffolding until the desktop/serial feasibility gate is passed.
+**Dependency:** User decisions listed in Section 5. UI and domain-state work
+may proceed against an explicitly unavailable transport while the hardware
+protocol gate is being validated. Do not claim hardware-backed CV support
+before that gate passes.
 
 ### Phase 1 — Establish the Nx application foundation
 
@@ -76,8 +79,8 @@ application scaffolding until the desktop/serial feasibility gate is passed.
 
 - Create/configure the Nx workspace and self-contained Angular application
   using the provided project rules.
-- Add the chosen desktop/runtime integration in the structure approved at the
-  Phase 0 gate.
+- Add the Electron main process and isolated preload bridge in a separate
+  self-contained application under `apps/`.
 - Establish the app shell, Angular Material theme foundation, Core and Feature
   areas, SCSS conventions, and local development/build commands.
 - Add separate application dependency metadata as required by the workspace
@@ -100,6 +103,8 @@ application scaffolding until the desktop/serial feasibility gate is passed.
 **Work**
 
 - Implement device enumeration and explicit user-selected connection lifecycle.
+- Implement port discovery and open/close in Electron's main process through a
+  minimal preload API.
 - Implement the verified DCC-EX host protocol behind a typed adapter, including
   readiness, response parsing, timeout, disconnect, and protocol error
   handling.
@@ -241,15 +246,14 @@ against unknown or operationally sensitive decoder values.
 1. **Linux platform matrix:** Which distributions/versions and CPU
    architectures are release targets?
 2. **Package format:** Which side-loadable artifact format(s) are required?
-3. **Desktop runtime:** Is a third-party Capacitor desktop integration
-   acceptable for Linux, or should a different desktop shell be evaluated?
-   Who will own support for that integration?
-4. **DCC-EX target:** Which command station hardware/firmware and serial
+3. **DCC-EX target:** Which command station hardware/firmware and serial
    protocol/configuration are the acceptance target?
-5. **Test CVs and setup:** Which CVs and decoder/setup are safe and repeatable
+4. **Test CVs and setup:** Which CVs and decoder/setup are safe and repeatable
    for read/write/read-back testing?
-6. **NMRA baseline:** Which specific current document revisions will be
+5. **NMRA baseline:** Which specific current document revisions will be
    recorded for this release?
+6. **Linux package target:** Confirm Ubuntu/Debian versions, x86_64/amd64
+   architecture, and whether `.deb` is the required package format.
 7. **Engineering ownership:** Who supplies/maintains DCC-EX hardware access,
    Linux test machines, and release signing or distribution credentials if
    needed?
@@ -258,7 +262,7 @@ against unknown or operationally sensitive decoder values.
 
 | Risk | Mitigation |
 |---|---|
-| Linux desktop is not an official Capacitor application target. | Resolve the runtime/shell in Phase 0; test packaging and serial access before committing to the full app architecture. |
+| The Linux desktop runtime and Capacitor serial bridge are not a supported combination. | Use the selected Electron + Angular architecture and keep the main-process serial API isolated behind a typed preload bridge. |
 | Serial API or permissions differ across Linux distributions and devices. | Limit the supported matrix, include clean-install tests, and document required setup and unsupported combinations. |
 | DCC-EX protocol details or Service Mode read-back behavior are not yet confirmed. | Verify against the selected hardware and its authoritative protocol documentation; gate adapter implementation on this confirmation. |
 | Decoder CVs may have side effects or may not be safely repeatable for testing. | Agree on test decoders/CVs and operator procedures; require confirmation and never automatically repeat uncertain writes. |
@@ -267,6 +271,6 @@ against unknown or operationally sensitive decoder values.
 
 ## 7. External references
 
-- [Capacitor environment setup](https://capacitorjs.com/docs/getting-started/environment-setup) — documents Android, iOS, and Web as Capacitor's officially supported application targets. Linux desktop packaging therefore requires a separately validated desktop approach.
-- [Capacitor plugin creation](https://capacitorjs.com/docs/plugins/creating-plugins) — describes bridging JavaScript to native APIs through plugins.
+- [Electron security guidance](https://www.electronjs.org/docs/latest/tutorial/security) — security guidance for main/renderer process boundaries.
+- [Node SerialPort supported environments](https://serialport.io/docs/guide-platform-support/) — Node/Electron support and platform/architecture limits.
 - [NMRA Standards and Recommended Practices](https://www.nmra.org/index-nmra-standards-and-recommended-practices) — authoritative location for the current DCC documents; record the applicable revisions before implementing validation and protocol behavior.

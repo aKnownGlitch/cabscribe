@@ -1,0 +1,15 @@
+
+.nx/installation
+.nx/cache
+.nx/workspace-data
+.nx/self-healing
+.nx/migrate-runs
+node_modules/
+dist/
+coverage/
+*.log
+.angular
+
+__screenshots__/
+vitest.config.*.timestamp*
+.vitest

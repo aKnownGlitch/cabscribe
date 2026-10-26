@@ -1,0 +1,20 @@
+appId: org.cabscribe.desktop
+productName: CabScribe
+asar: true
+directories:
+  output: ../../dist/packages
+files:
+  - src/**/*
+  - package.json
+extraResources:
+  - from: ../../dist/apps/cabscribe/browser
+    to: web
+    filter:
+      - "**/*"
+linux:
+  category: Utility
+  target:
+    - target: deb
+      arch:
+        - x64
+  artifactName: CabScribe-${version}-${arch}.${ext}
