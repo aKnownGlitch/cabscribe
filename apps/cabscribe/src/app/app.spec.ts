@@ -126,6 +126,8 @@ describe('App', () => {
     expect(compiled.querySelector('.welcome-message')?.textContent).toContain('free, open-source');
     expect(compiled.querySelector('.welcome-disclaimer')?.textContent).toContain('without warranty');
     expect(compiled.querySelector('.welcome-disclaimer')?.textContent).toContain('not liable');
+    expect(compiled.querySelector('.welcome-disclaimer')?.textContent?.replace(/\s+/g, ' '))
+      .toContain(`Check your setup before programming a decoder. Version ${fixture.componentInstance.version}, October 27, 2026.`);
     expect(compiled.textContent).not.toContain('HARDWARE CONNECTION');
     expect(compiled.textContent).toContain('Locomotive or Accessory ID');
     const debugOutput = compiled.querySelector<HTMLTextAreaElement>(

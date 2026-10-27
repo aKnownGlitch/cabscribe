@@ -20,7 +20,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { map } from 'rxjs';
 import { DccSessionService } from 'common';
-import { APP_VERSION } from './app-version';
+import { APP_RELEASE_DATE, APP_VERSION } from './app-version';
 import { CV_TABLE_PATH } from './app.routes';
 import { parseInteger } from './parse-integer';
 
@@ -45,6 +45,7 @@ export class App implements OnInit {
   private static readonly selectedPortStorageKey = 'cabscribe.selectedSerialPort';
   private readonly router = inject(Router);
   readonly version = APP_VERSION;
+  readonly releaseDate = APP_RELEASE_DATE;
   readonly session = inject(DccSessionService);
   readonly targetAddress = this.session.targetAddress;
   private readonly currentUrl = toSignal(
