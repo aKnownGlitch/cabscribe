@@ -1,6 +1,6 @@
 {
   "name": "@cabscribe/app",
-  "version": "0.0.1",
+  "version": "2.0.0",
   "private": true,
   "dependencies": {
     "@angular/cdk": "~22.2.0",

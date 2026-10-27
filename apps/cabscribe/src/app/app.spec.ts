@@ -113,7 +113,7 @@ describe('App', () => {
       '#serial-debug-output'
     );
     expect(debugOutput?.readOnly).toBe(true);
-    expect(compiled.querySelector('input[role="switch"]')).not.toBeNull();
+    expect(compiled.querySelector('.debug-toggle-button')).not.toBeNull();
     expect(compiled.textContent).not.toContain('Hardware connection');
     expect(compiled.querySelector('h1')?.textContent).toBe(
       'Read or write a configuration variable'
@@ -274,7 +274,7 @@ describe('App', () => {
     expect(app.cvAddress()).toBe('29');
     expect(app.cvValue()).toBe('77');
     expect(element.querySelector<HTMLButtonElement>('.connection-settings-button')?.disabled).toBe(false);
-    expect(element.querySelector<HTMLInputElement>('input[role="switch"]')?.disabled).toBe(false);
+    expect(element.querySelector<HTMLButtonElement>('.debug-toggle-button')?.disabled).toBe(false);
   });
 
   it('persists the selected serial port and restores it without reconnecting', async () => {
@@ -427,7 +427,7 @@ describe('App', () => {
     ).toBeNull();
     expect(
       (fixture.nativeElement as HTMLElement).querySelector(
-        'input[role="switch"]'
+        '.debug-toggle-button'
       )
     ).not.toBeNull();
   });

@@ -16,6 +16,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { DccSessionService } from 'common';
+import { APP_VERSION } from './app-version';
 import { CV_DEFINITIONS, CV_DEFINITIONS_SOURCE } from './cv-definitions';
 
 @Component({
@@ -33,6 +34,7 @@ import { CV_DEFINITIONS, CV_DEFINITIONS_SOURCE } from './cv-definitions';
 })
 export class App implements OnInit {
   private static readonly selectedPortStorageKey = 'cabscribe.selectedSerialPort';
+  readonly version = APP_VERSION;
   readonly session = inject(DccSessionService);
   readonly targetAddress = signal('');
   readonly cvAddress = signal('');
