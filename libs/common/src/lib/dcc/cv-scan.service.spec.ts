@@ -60,14 +60,14 @@ describe('CvScanService', () => {
   });
 
   it('cancels between reads, keeps values and leaves unread rows unread', async () => {
-    let scanRef!: CvScanService;
+    const ref: { scan?: CvScanService } = {};
     const { scan } = await setup(async (_address, cv) => {
       if (cv === 2) {
-        scanRef.cancel();
+        ref.scan?.cancel();
       }
       return cv;
     });
-    scanRef = scan;
+    ref.scan = scan;
     await scan.scan(3, { first: 1, last: 5 });
 
     expect(scan.rows().map((row) => row.status)).toEqual([
@@ -134,14 +134,14 @@ describe('CvScanService', () => {
   });
 
   it('stops when the connection is lost mid-scan', async () => {
-    let sessionRef!: DccSessionService;
+    const ref: { session?: DccSessionService } = {};
     const { scan, session } = await setup(async (_address, cv) => {
       if (cv === 2) {
-        sessionRef.connection.set({ status: 'error', message: 'Device removed' });
+        ref.session?.connection.set({ status: 'error', message: 'Device removed' });
       }
       return cv;
     });
-    sessionRef = session;
+    ref.session = session;
     await scan.scan(3, { first: 1, last: 5 });
 
     expect(scan.rows().map((row) => row.status)).toEqual([
