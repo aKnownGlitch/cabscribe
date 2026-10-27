@@ -216,7 +216,18 @@ h1 {
 
 .address-field {
   width: min(100%, 420px);
-  margin-bottom: -1.25em;
+}
+
+.address-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.address-controls .address-field {
+  min-width: 0;
+  flex: 0 1 420px;
 }
 
 .debug-panel {

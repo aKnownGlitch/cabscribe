@@ -122,7 +122,8 @@ one primary application screen rather than separate pages.
   Locomotive or Accessory ID is the programming target and applies to both
   Read and Write.
 - A successful read places the returned value in the editable Value field.
-- Add **Confirm** to the Programming Target Address section. With a connected
+- Align **Confirm** alongside the address input in the Programming Target Address
+  section in the same row, vertically centered. With a connected
   serial port and a valid locomotive address, send `<R LOCOID>` and compare
   `<r LOCOID address>` with the entered ID. This reads the actual locomotive
   address, not its consist address; it does not change the address.
@@ -150,6 +151,11 @@ one primary application screen rather than separate pages.
   read the CV back to verify the result.
 
 ### D. Serial debug output
+
+- Add a **Clear** button beside the debug heading to empty the current log
+  without affecting the connection or operations. Disable it when the log is
+  empty; new serial traffic continues to appear after clearing. Match the
+  **Write** button's filled warning-red background and white text.
 
 - Use **Debug output** as the heading; omit the **SERIAL MONITOR** kicker.
 - Replace the latest-operation result panel with a read-only serial log.

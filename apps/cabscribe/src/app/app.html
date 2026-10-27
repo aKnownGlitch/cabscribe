@@ -50,7 +50,8 @@
           Confirm reads a locomotive on the programming track. Accessory confirmation is not supported.
         </p>
       </div>
-      <mat-form-field appearance="outline" class="address-field">
+      <div class="address-controls">
+      <mat-form-field appearance="outline" class="address-field" subscriptSizing="dynamic">
         <mat-label>Locomotive or Accessory ID</mat-label>
         <input
           matInput
@@ -65,7 +66,6 @@
           placeholder="Enter an address"
         />
       </mat-form-field>
-      <div class="operation-actions">
         <button
           mat-flat-button
           type="button"
@@ -207,6 +207,16 @@
             aria-label="Operation in progress"
           ></mat-progress-spinner>
         }
+        <button
+          mat-flat-button
+          type="button"
+          class="clear-debug-button write-button"
+          (click)="session.serialLog.set([])"
+          [disabled]="session.serialLog().length === 0"
+          aria-controls="serial-debug-output"
+        >
+          Clear
+        </button>
       </div>
       <textarea
         #debugOutput

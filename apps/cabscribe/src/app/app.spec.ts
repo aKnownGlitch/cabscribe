@@ -400,6 +400,24 @@ describe('App', () => {
     ).querySelector<HTMLTextAreaElement>('#serial-debug-output');
     expect(debugOutput?.value).toBe('CS> <READ 29>\nDC< <r 29|42>');
 
+    const clearButton = (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('.clear-debug-button');
+    expect(clearButton?.disabled).toBe(false);
+    const connectionBeforeClear = fixture.componentInstance.session.connection();
+    clearButton?.click();
+    fixture.detectChanges();
+    expect(debugOutput?.value).toBe('');
+    expect(fixture.componentInstance.session.serialLog()).toEqual([]);
+    expect(fixture.componentInstance.session.connection()).toEqual(connectionBeforeClear);
+    expect(clearButton?.disabled).toBe(true);
+
+    fixture.componentInstance.session.serialLog.set([
+      { direction: 'incoming', message: '<r LOCOID 3>' },
+    ]);
+    fixture.detectChanges();
+    expect(debugOutput?.value).toBe('DC< <r LOCOID 3>');
+    expect(clearButton?.disabled).toBe(false);
+
     fixture.componentInstance.debugLogVisible.set(false);
     fixture.detectChanges();
     expect(
