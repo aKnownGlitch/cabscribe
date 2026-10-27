@@ -1,7 +1,7 @@
 <div class="app-shell">
   @let connection = session.connection();
   <header class="topbar">
-    <a class="brand" href="/" aria-label="CABSCRIBE home">
+    <a class="brand" routerLink="/" aria-label="CABSCRIBE home">
       <img
         class="brand-mark"
         src="cabscribe-icon.png"
@@ -37,6 +37,21 @@
         </svg>
       </button>
       <button
+        class="table-toggle-button"
+        type="button"
+        aria-label="Read CV table"
+        title="Read CV table"
+        [attr.aria-pressed]="onTablePage()"
+        [class.active]="onTablePage()"
+        (click)="toggleCvTable()"
+      >
+        <svg class="filled-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M10 10.02h5V21h-5zM17 21h3c1.1 0 2-.9 2-2v-9h-5v11zm3-18H5c-1.1 0-2 .9-2 2v3h19V5c0-1.1-.9-2-2-2zM3 19c0 1.1.9 2 2 2h3V10H3v9z"
+          />
+        </svg>
+      </button>
+      <button
         class="connection-settings-button"
         type="button"
         aria-label="Serial connection settings"
@@ -58,7 +73,7 @@
   <main class="workspace">
     <section class="page-heading" aria-labelledby="page-title">
       <div>
-        <h1 id="page-title">Read or write a configuration variable</h1>
+        <h1 id="page-title">{{ pageTitle() }}</h1>
       </div>
     </section>
 
@@ -82,7 +97,7 @@
           step="1"
           [ngModel]="targetAddress()"
           (ngModelChange)="updateTargetAddress($event)"
-          [disabled]="!isConnected() || confirmingAddress()"
+          [disabled]="!isConnected() || operationInProgress()"
           [ngModelOptions]="{ standalone: true }"
           placeholder="Enter an address"
         />
@@ -108,95 +123,7 @@
       }
     </section>
 
-    <section class="operation-card" aria-labelledby="cv-editor-title">
-      <div class="card-heading">
-        <div>
-          <h2 id="cv-editor-title">Configuration Variable</h2>
-        </div>
-        <p class="cv-reference">
-          <a [href]="cvDefinitionsSource" target="_blank" rel="noopener noreferrer">
-            TCS CV reference
-          </a>
-          · Listed functions vary by decoder. Other CVs can be entered manually.
-        </p>
-      </div>
-
-      <mat-form-field appearance="outline" class="cv-function-field">
-        <mat-label>CV function (optional)</mat-label>
-        <mat-select
-          [value]="selectedCvDefinition()"
-          [disabled]="!isConnected()"
-          (selectionChange)="selectCvDefinition($event.value)"
-        >
-          <mat-select-trigger>{{ selectedCvLabel() }}</mat-select-trigger>
-          <mat-option [value]="null">Manual CV address</mat-option>
-          @if (isCustomCvAddress()) {
-            <mat-option [value]="selectedCvDefinition()">
-              CV {{ selectedCvDefinition() }} — Manual address
-            </mat-option>
-          }
-          @for (definition of cvDefinitions; track definition.address) {
-            <mat-option [value]="definition.address">
-              CV {{ definition.address }} — {{ definition.label }}
-            </mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-
-      <div class="cv-fields">
-        <mat-form-field appearance="outline">
-          <mat-label>CV address</mat-label>
-          <input
-            matInput
-            type="number"
-            inputmode="numeric"
-            min="1"
-            step="1"
-            [ngModel]="cvAddress()"
-            [disabled]="!isConnected()"
-            (ngModelChange)="cvAddress.set($event)"
-            [ngModelOptions]="{ standalone: true }"
-            placeholder="Enter a CV address"
-          />
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Value</mat-label>
-          <input
-            matInput
-            type="number"
-            inputmode="numeric"
-            min="0"
-            step="1"
-            [ngModel]="cvValue()"
-            [disabled]="!isConnected()"
-            (ngModelChange)="cvValue.set($event)"
-            [ngModelOptions]="{ standalone: true }"
-            placeholder="Read or enter a value"
-          />
-        </mat-form-field>
-      </div>
-
-      <div class="operation-actions">
-        <button
-          mat-flat-button
-          type="button"
-          class="operation-button read-button"
-          (click)="read()"
-          [disabled]="!canRead()"
-        >
-          Read
-        </button>
-        <button
-          mat-flat-button
-          type="button"
-          class="operation-button write-button"
-          (click)="requestWrite()"
-          [disabled]="!canWrite()"
-        >
-          Write
-        </button>
-      </div>
-    </section>
+    <router-outlet />
 
     @if (debugLogVisible()) {
     <section class="debug-panel" aria-labelledby="debug-title">
@@ -410,54 +337,4 @@
       </div>
     }
   </div>
-</dialog>
-
-<dialog
-  #writeDialog
-  class="write-dialog"
-  aria-labelledby="confirm-title"
-  aria-describedby="confirm-description"
->
-  @if (pendingWrite(); as change) {
-    <div class="dialog-content">
-      <p class="card-kicker">CONFIRM DECODER CHANGE</p>
-      <h2 id="confirm-title">Write this CV value?</h2>
-      <p id="confirm-description">
-        This changes the decoder configuration. Review the exact CV and value
-        before continuing.
-      </p>
-      <div class="change-summary">
-        <div>
-          <span>Locomotive or Accessory ID</span>
-          <strong>{{ change.address }}</strong>
-        </div>
-        <div>
-          <span>CV {{ change.cv }}</span>
-          <strong>{{ change.value }}</strong>
-        </div>
-      </div>
-      <p class="dialog-note">
-        CabScribe will read the CV back. The write will only be marked verified
-        if the value matches.
-      </p>
-      <div class="dialog-actions">
-        <button
-          mat-button
-          type="button"
-          class="cancel-button"
-          (click)="cancelWrite()"
-        >
-          Cancel
-        </button>
-        <button
-          mat-flat-button
-          type="button"
-          class="confirm-button"
-          (click)="confirmWrite()"
-        >
-          Confirm and write
-        </button>
-      </div>
-    </div>
-  }
 </dialog>

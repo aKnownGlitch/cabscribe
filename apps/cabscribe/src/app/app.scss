@@ -1,4 +1,4 @@
-:host {
+app-root {
   display: block;
   min-height: 100vh;
   color: #1e2933;
@@ -81,7 +81,8 @@
 }
 
 .connection-settings-button,
-.debug-toggle-button {
+.debug-toggle-button,
+.table-toggle-button {
   display: grid;
   width: 36px;
   height: 36px;
@@ -95,30 +96,35 @@
 }
 
 .connection-settings-button:hover,
-.debug-toggle-button:hover {
+.debug-toggle-button:hover,
+.table-toggle-button:hover {
   border-color: #aebfc6;
   background: #f7f9fa;
 }
 
 .connection-settings-button:focus-visible,
-.debug-toggle-button:focus-visible {
+.debug-toggle-button:focus-visible,
+.table-toggle-button:focus-visible {
   outline: 3px solid rgb(23 107 104 / 28%);
   outline-offset: 2px;
 }
 
-.debug-toggle-button.active {
+.debug-toggle-button.active,
+.table-toggle-button.active {
   border-color: #176b68;
   background: #e6f2f1;
   color: #176b68;
 }
 
-.debug-toggle-button svg.filled-icon {
+.debug-toggle-button svg.filled-icon,
+.table-toggle-button svg.filled-icon {
   fill: currentColor;
   stroke: none;
 }
 
 .connection-settings-button svg,
-.debug-toggle-button svg {
+.debug-toggle-button svg,
+.table-toggle-button svg {
   width: 19px;
   height: 19px;
   fill: none;
@@ -373,6 +379,133 @@ h1 {
   gap: 10px;
 }
 
+app-cv-editor-page,
+app-cv-table-page {
+  display: block;
+  min-width: 0;
+}
+
+app-cv-table-page {
+  display: flex;
+  min-height: 260px;
+  flex: 1 1 320px;
+  flex-direction: column;
+}
+
+.cv-table-card {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.scan-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.scan-hint,
+.scan-status {
+  margin: 10px 0 0;
+  color: #536873;
+  font-size: 12px;
+}
+
+.scan-hint.error {
+  color: #b3261e;
+}
+
+.scan-status {
+  min-height: 1.4em;
+  margin-bottom: 10px;
+}
+
+.scan-button {
+  min-width: 128px;
+}
+
+.scan-progress {
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: middle;
+  --mat-progress-spinner-active-indicator-color: #fff;
+}
+
+.export-button {
+  min-height: 42px;
+  border-radius: 8px;
+}
+
+.cv-table-wrapper {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  border: 1px solid #dce4e7;
+  border-radius: 9px;
+}
+
+.cv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.cv-table th,
+.cv-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #edf1f3;
+  text-align: left;
+  vertical-align: top;
+}
+
+.cv-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f3f6f7;
+  color: #3d525e;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.cv-number,
+.cv-value {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  white-space: nowrap;
+}
+
+.cv-status-message {
+  display: block;
+  color: #536873;
+  font-size: 11px;
+}
+
+.cv-table tr[data-status='failed'] .cv-status {
+  color: #b3261e;
+  font-weight: 600;
+}
+
+.cv-table tr[data-status='not-applicable'],
+.cv-table tr[data-status='unsupported'] {
+  color: #697984;
+}
+
+.cv-empty {
+  padding: 22px 12px !important;
+  color: #697984;
+  text-align: center !important;
+}
+
+.visually-hidden {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
 .write-button {
   background: #b3261e !important;
   color: #fff !important;
@@ -610,9 +743,14 @@ h1 {
     gap: 10px;
   }
 
-  .cv-fields {
+  .cv-fields,
+  .scan-controls {
     grid-template-columns: 1fr;
     gap: 0;
+  }
+
+  .scan-controls {
+    gap: 4px;
   }
 
   .app-footer {

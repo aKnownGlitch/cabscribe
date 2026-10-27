@@ -1,7 +1,8 @@
-import { DestroyRef, inject, Injectable, signal } from '@angular/core';
+import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import {
   DCC_TRANSPORT,
   DccTransportError,
+  DccTransportErrorCode,
   SerialLogMessage,
   SerialPortInfo,
 } from './dcc-transport';
@@ -32,7 +33,13 @@ export type OperationState =
   | { kind: 'idle' }
   | { kind: 'reading'; address: number; cv: number }
   | { kind: 'read-success'; address: number; cv: number; value: number }
-  | { kind: 'read-failure'; address: number; cv: number; message: string }
+  | {
+      kind: 'read-failure';
+      address: number;
+      cv: number;
+      message: string;
+      code?: DccTransportErrorCode;
+    }
   | { kind: 'writing'; address: number; cv: number; value: number }
   | { kind: 'verifying'; address: number; cv: number; value: number }
   | { kind: 'write-verified'; address: number; cv: number; value: number }
@@ -76,11 +83,21 @@ export class DccSessionService {
     message: 'Serial communication is not configured in this build.',
   });
   readonly operation = signal<OperationState>({ kind: 'idle' });
+  /** Locomotive address entered in the shared target panel. */
+  readonly targetAddress = signal('');
+  /** Set while a multi-CV operation (such as a table scan) owns the interface. */
+  readonly bulkOperationActive = signal(false);
   readonly canRequestPort = typeof this.transport.requestPort === 'function';
   readonly canConfirmAddress =
     typeof this.transport.requestLocomotiveAddress === 'function' &&
     typeof this.transport.onSerialMessage === 'function';
   readonly addressConfirmation = signal<AddressConfirmationState>({ status: 'idle' });
+  readonly operationInProgress = computed(
+    () =>
+      this.bulkOperationActive() ||
+      this.addressConfirmation().status === 'confirming' ||
+      ['reading', 'writing', 'verifying'].includes(this.operation().kind)
+  );
   private addressResponse?: {
     resolve: (address: number) => void;
     reject: (error: Error) => void;
@@ -125,7 +142,10 @@ export class DccSessionService {
       fail('Address confirmation is not available on this connection.');
       return;
     }
-    if (['reading', 'writing', 'verifying'].includes(this.operation().kind)) {
+    if (
+      this.bulkOperationActive() ||
+      ['reading', 'writing', 'verifying'].includes(this.operation().kind)
+    ) {
       fail('Wait for the current CV operation to finish.');
       return;
     }
@@ -309,6 +329,7 @@ export class DccSessionService {
         address,
         cv,
         message: this.errorMessage(error, 'The CV could not be read.'),
+        code: error instanceof DccTransportError ? error.code : undefined,
       });
     }
   }

@@ -1,12 +1,19 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, ComponentFixture } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { provideRouter, Router } from '@angular/router';
 import { App } from './app';
+import { routes } from './app.routes';
+import { CvEditorPage } from './cv-editor.page';
 import {
+  CvScanService,
   DCC_TRANSPORT,
   DccSessionService,
   UnavailableDccTransport,
 } from 'common';
 
 describe('App', () => {
+  const editorOf = (fixture: ComponentFixture<App>) =>
+    fixture.debugElement.query(By.directive(CvEditorPage)).componentInstance as CvEditorPage;
   const originalShowModal = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
   const originalClose = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'close');
   beforeEach(async () => {
@@ -22,7 +29,9 @@ describe('App', () => {
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [
+        provideRouter(routes),
         DccSessionService,
+        CvScanService,
         {
           provide: DCC_TRANSPORT,
           useClass: UnavailableDccTransport,
@@ -30,6 +39,13 @@ describe('App', () => {
       ],
     }).compileComponents();
   });
+
+  const showEditor = async (fixture: ComponentFixture<App>) => {
+    await TestBed.inject(Router).navigateByUrl('/');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    return editorOf(fixture);
+  };
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -88,9 +104,12 @@ describe('App', () => {
 
   it('explains that serial communication is not configured', async () => {
     const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
+    await showEditor(fixture);
     const compiled = fixture.nativeElement as HTMLElement;
-
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(compiled.textContent).toContain('Serial communication is not configured');
+    });
     expect(compiled.querySelector('.mode-chip')?.textContent).toContain(
       'Disconnected'
     );
@@ -213,7 +232,7 @@ describe('App', () => {
       fixture.detectChanges();
       expect(element.querySelector<HTMLInputElement>('.address-field input')?.disabled).toBe(true);
     });
-    expect(app.canRead()).toBe(false);
+    expect(app.operationInProgress()).toBe(true);
     incoming({ direction: 'incoming', message: '<r LOCOID 3>' });
     await fixture.whenStable();
     fixture.detectChanges();
@@ -245,8 +264,9 @@ describe('App', () => {
     const app = fixture.componentInstance;
     const element = fixture.nativeElement as HTMLElement;
     app.targetAddress.set('3');
-    app.cvAddress.set('29');
-    app.cvValue.set('77');
+    const editor = await showEditor(fixture);
+    editor.cvAddress.set('29');
+    editor.cvValue.set('77');
     const expectInputsDisabled = async (disabled: boolean) => {
       await vi.waitFor(() => {
         fixture.detectChanges();
@@ -271,8 +291,8 @@ describe('App', () => {
     await app.session.disconnect();
     await expectInputsDisabled(true);
     expect(app.targetAddress()).toBe('3');
-    expect(app.cvAddress()).toBe('29');
-    expect(app.cvValue()).toBe('77');
+    expect(editor.cvAddress()).toBe('29');
+    expect(editor.cvValue()).toBe('77');
     expect(element.querySelector<HTMLButtonElement>('.connection-settings-button')?.disabled).toBe(false);
     expect(element.querySelector<HTMLButtonElement>('.debug-toggle-button')?.disabled).toBe(false);
   });
@@ -347,17 +367,18 @@ describe('App', () => {
     Object.defineProperty(connectionDialog, 'close', { value: vi.fn() });
     await fixture.componentInstance.connect();
 
+    const editor = await showEditor(fixture);
     fixture.componentInstance.targetAddress.set('3');
-    fixture.componentInstance.cvAddress.set('29');
-    await fixture.componentInstance.read();
-    expect(fixture.componentInstance.cvValue()).toBe('42');
+    editor.cvAddress.set('29');
+    await editor.read();
+    expect(editor.cvValue()).toBe('42');
     expect(transport.readCv).toHaveBeenCalledWith(3, 29);
 
-    fixture.componentInstance.cvValue.set('99');
-    await fixture.componentInstance.read();
-    expect(fixture.componentInstance.cvValue()).toBe('');
+    editor.cvValue.set('99');
+    await editor.read();
+    expect(editor.cvValue()).toBe('');
 
-    fixture.componentInstance.cvValue.set('77');
+    editor.cvValue.set('77');
     const writeDialog = (
       fixture.nativeElement as HTMLElement
     ).querySelector<HTMLDialogElement>('.write-dialog');
@@ -372,16 +393,16 @@ describe('App', () => {
     Object.defineProperty(writeDialog, 'close', {
       value: closeWriteDialog,
     });
-    fixture.componentInstance.requestWrite();
+    editor.requestWrite();
 
     expect(showWriteDialog).toHaveBeenCalledOnce();
-    expect(fixture.componentInstance.pendingWrite()).toEqual({
+    expect(editor.pendingWrite()).toEqual({
       address: 3,
       cv: 29,
       value: 77,
     });
 
-    await fixture.componentInstance.confirmWrite();
+    await editor.confirmWrite();
     expect(transport.writeCv).toHaveBeenCalledWith(3, 29, 77);
     expect(transport.readCv).toHaveBeenLastCalledWith(3, 29);
   });
@@ -461,7 +482,7 @@ describe('App', () => {
   it('uses one address for function selection and manual CV entry', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
-    const app = fixture.componentInstance;
+    const app = await showEditor(fixture);
     app.cvValue.set('77');
     app.selectCvDefinition(29);
     expect(app.cvAddress()).toBe('29');
@@ -481,5 +502,25 @@ describe('App', () => {
     app.selectCvDefinition(null);
     expect(app.cvAddress()).toBe('');
     expect(app.selectedCvDefinition()).toBeNull();
+  });
+
+  it('toggles the CV table page from the header icon button', async () => {
+    const fixture = TestBed.createComponent(App);
+    await showEditor(fixture);
+    const element = fixture.nativeElement as HTMLElement;
+    const button = element.querySelector<HTMLButtonElement>('.table-toggle-button');
+    expect(button?.getAttribute('aria-label')).toBe('Read CV table');
+    expect(button?.getAttribute('aria-pressed')).toBe('false');
+    button?.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.querySelector('app-cv-table-page')).not.toBeNull();
+    expect(button?.getAttribute('aria-pressed')).toBe('true');
+    expect(element.querySelector('.scan-button')).not.toBeNull();
+    button?.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.querySelector('app-cv-table-page')).toBeNull();
+    expect(button?.getAttribute('aria-pressed')).toBe('false');
   });
 });

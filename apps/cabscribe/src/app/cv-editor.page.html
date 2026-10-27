@@ -1,0 +1,139 @@
+<section class="operation-card" aria-labelledby="cv-editor-title">
+  <div class="card-heading">
+    <div>
+      <h2 id="cv-editor-title">Configuration Variable</h2>
+    </div>
+    <p class="cv-reference">
+      <a [href]="cvDefinitionsSource" target="_blank" rel="noopener noreferrer">
+        TCS CV reference
+      </a>
+      · Listed functions vary by decoder. Other CVs can be entered manually.
+    </p>
+  </div>
+
+  <mat-form-field appearance="outline" class="cv-function-field">
+    <mat-label>CV function (optional)</mat-label>
+    <mat-select
+      [value]="selectedCvDefinition()"
+      [disabled]="!isConnected()"
+      (selectionChange)="selectCvDefinition($event.value)"
+    >
+      <mat-select-trigger>{{ selectedCvLabel() }}</mat-select-trigger>
+      <mat-option [value]="null">Manual CV address</mat-option>
+      @if (isCustomCvAddress()) {
+        <mat-option [value]="selectedCvDefinition()">
+          CV {{ selectedCvDefinition() }} — Manual address
+        </mat-option>
+      }
+      @for (definition of cvDefinitions; track definition.address) {
+        <mat-option [value]="definition.address">
+          CV {{ definition.address }} — {{ definition.label }}
+        </mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <div class="cv-fields">
+    <mat-form-field appearance="outline">
+      <mat-label>CV address</mat-label>
+      <input
+        matInput
+        type="number"
+        inputmode="numeric"
+        min="1"
+        step="1"
+        [ngModel]="cvAddress()"
+        [disabled]="!isConnected()"
+        (ngModelChange)="cvAddress.set($event)"
+        [ngModelOptions]="{ standalone: true }"
+        placeholder="Enter a CV address"
+      />
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Value</mat-label>
+      <input
+        matInput
+        type="number"
+        inputmode="numeric"
+        min="0"
+        step="1"
+        [ngModel]="cvValue()"
+        [disabled]="!isConnected()"
+        (ngModelChange)="cvValue.set($event)"
+        [ngModelOptions]="{ standalone: true }"
+        placeholder="Read or enter a value"
+      />
+    </mat-form-field>
+  </div>
+
+  <div class="operation-actions">
+    <button
+      mat-flat-button
+      type="button"
+      class="operation-button read-button"
+      (click)="read()"
+      [disabled]="!canRead()"
+    >
+      Read
+    </button>
+    <button
+      mat-flat-button
+      type="button"
+      class="operation-button write-button"
+      (click)="requestWrite()"
+      [disabled]="!canWrite()"
+    >
+      Write
+    </button>
+  </div>
+</section>
+
+<dialog
+  #writeDialog
+  class="write-dialog"
+  aria-labelledby="confirm-title"
+  aria-describedby="confirm-description"
+>
+  @if (pendingWrite(); as change) {
+    <div class="dialog-content">
+      <p class="card-kicker">CONFIRM DECODER CHANGE</p>
+      <h2 id="confirm-title">Write this CV value?</h2>
+      <p id="confirm-description">
+        This changes the decoder configuration. Review the exact CV and value
+        before continuing.
+      </p>
+      <div class="change-summary">
+        <div>
+          <span>Locomotive or Accessory ID</span>
+          <strong>{{ change.address }}</strong>
+        </div>
+        <div>
+          <span>CV {{ change.cv }}</span>
+          <strong>{{ change.value }}</strong>
+        </div>
+      </div>
+      <p class="dialog-note">
+        CabScribe will read the CV back. The write will only be marked verified
+        if the value matches.
+      </p>
+      <div class="dialog-actions">
+        <button
+          mat-button
+          type="button"
+          class="cancel-button"
+          (click)="cancelWrite()"
+        >
+          Cancel
+        </button>
+        <button
+          mat-flat-button
+          type="button"
+          class="confirm-button"
+          (click)="confirmWrite()"
+        >
+          Confirm and write
+        </button>
+      </div>
+    </div>
+  }
+</dialog>

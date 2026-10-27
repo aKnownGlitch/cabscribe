@@ -1,0 +1,145 @@
+<section class="operation-card cv-table-card" aria-labelledby="cv-table-title">
+  <div class="card-heading">
+    <div>
+      <h2 id="cv-table-title">Configuration Variables</h2>
+    </div>
+    <p class="cv-reference">
+      <a [href]="cvDefinitionsSource" target="_blank" rel="noopener noreferrer">
+        TCS CV reference
+      </a>
+      · Not every CV applies to every decoder or interface.
+    </p>
+  </div>
+
+  <div class="scan-controls">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>First CV</mat-label>
+      <input
+        matInput
+        class="first-cv-input"
+        type="number"
+        inputmode="numeric"
+        [min]="cvLimits.min"
+        [max]="cvLimits.max"
+        step="1"
+        [ngModel]="firstCv()"
+        (ngModelChange)="firstCv.set($event)"
+        [disabled]="!isConnected() || scan.scanning()"
+        [ngModelOptions]="{ standalone: true }"
+      />
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Last CV</mat-label>
+      <input
+        matInput
+        class="last-cv-input"
+        type="number"
+        inputmode="numeric"
+        [min]="cvLimits.min"
+        [max]="cvLimits.max"
+        step="1"
+        [ngModel]="lastCv()"
+        (ngModelChange)="lastCv.set($event)"
+        [disabled]="!isConnected() || scan.scanning()"
+        [ngModelOptions]="{ standalone: true }"
+      />
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Value format</mat-label>
+      <mat-select
+        [value]="valueFormat()"
+        (selectionChange)="valueFormat.set($event.value)"
+      >
+        <mat-option value="decimal">Decimal</mat-option>
+        <mat-option value="hex">Hexadecimal</mat-option>
+        <mat-option value="binary">Binary</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  @if (rangeError(); as error) {
+    <p class="scan-hint error" role="alert">{{ error }}</p>
+  } @else {
+    <p class="scan-hint">
+      {{ cvCount() }} {{ cvCount() === 1 ? 'CV' : 'CVs' }} will be read, one at
+      a time. Large ranges can take a long time.
+    </p>
+  }
+
+  <div class="operation-actions">
+    <button
+      mat-stroked-button
+      type="button"
+      class="export-button"
+      (click)="exportCsv()"
+      [disabled]="scan.rows().length === 0 || scan.scanning()"
+    >
+      Export CSV
+    </button>
+    <button
+      mat-flat-button
+      type="button"
+      class="operation-button read-button scan-button"
+      (click)="toggleScan()"
+      [disabled]="!canToggleScan()"
+    >
+      @if (scan.scanning()) {
+        <mat-progress-spinner
+          class="scan-progress"
+          diameter="20"
+          mode="determinate"
+          [value]="scan.percent()"
+          aria-label="Scan progress"
+        ></mat-progress-spinner>
+        {{ scan.cancelling() ? 'Cancelling…' : 'Cancel' }}
+      } @else {
+        Read
+      }
+    </button>
+  </div>
+
+  <p class="scan-status" role="status" aria-live="polite">{{ statusMessage() }}</p>
+
+  <div
+    class="cv-table-wrapper"
+    role="region"
+    aria-label="Configuration variable values"
+    tabindex="0"
+  >
+    <table class="cv-table">
+      <caption class="visually-hidden">
+        Configuration variable values read from the target decoder
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">CV</th>
+          <th scope="col">Value</th>
+          <th scope="col">Status</th>
+          <th scope="col">Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of displayRows(); track row.cv) {
+          <tr [attr.data-status]="row.status">
+            <td class="cv-number">{{ row.cv }}</td>
+            <td class="cv-value">{{ row.display }}</td>
+            <td>
+              <span class="cv-status">{{ statusLabels[row.status] }}</span>
+              @if (row.message && row.status !== 'value') {
+                <span class="cv-status-message">{{ row.message }}</span>
+              }
+            </td>
+            <td>{{ row.description }}</td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="4" class="cv-empty">
+              Select Read to scan CVs from the target. Values and descriptions
+              appear here.
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
