@@ -1,9 +1,16 @@
 # CabScribe
 
+[![CI](https://github.com/aKnownGlitch/cabscribe/actions/workflows/ci.yml/badge.svg)](https://github.com/aKnownGlitch/cabscribe/actions/workflows/ci.yml)
+[![Deploy web](https://github.com/aKnownGlitch/cabscribe/actions/workflows/deploy-web.yml/badge.svg)](https://github.com/aKnownGlitch/cabscribe/actions/workflows/deploy-web.yml)
+
 CabScribe is a personal, open-source desktop project for reading and writing
 NMRA DCC decoder Configuration Variables (CVs). The planned initial hardware
 target is a DCC-EX command station connected over a serial port, using
 Service Mode programming.
+
+Run CabScribe in your browser at **[https://cabscribe.com](https://cabscribe.com)**.
+Connecting to a command station requires a browser that supports Web Serial,
+such as desktop Chrome or Edge.
 
 > **Project status: early development.** The user interface, shared CV session
 > state, and Electron serial-port connection shell are in place. DCC-EX CV
