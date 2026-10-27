@@ -1,0 +1,16 @@
+name: Deploy web
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/_test.yml
+  deploy:
+    needs: test
+    uses: ./.github/workflows/_deploy-web.yml
+    secrets: inherit

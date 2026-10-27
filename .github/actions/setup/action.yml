@@ -1,0 +1,12 @@
+name: Set up CabScribe workspace
+description: Install Node.js 22 and the locked npm dependencies.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: npm
+    - run: npm ci
+      shell: bash

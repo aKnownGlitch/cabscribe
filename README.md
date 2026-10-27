@@ -114,6 +114,42 @@ Packaging and native serial dependency behavior have not yet been validated
 end-to-end. See the project plan before treating generated packages as
 releases.
 
+## GitHub Actions
+
+GitHub only reads workflows from the top level of `.github/workflows/`, so
+they are grouped by name: reusable building blocks start with an underscore,
+and the shared Node/npm setup is a composite action in `.github/actions/setup`.
+
+| Workflow | Trigger | What it does |
+| --- | --- | --- |
+| `ci.yml` | Pull requests, pushes to `main` | Calls `_test.yml`. |
+| `deploy-web.yml` | Manual (Actions tab) | Tests, then deploys the web app to Namecheap. |
+| `release.yml` | Tags matching `v*` | Tests, builds the Linux `.deb`, deploys the web app and creates a GitHub release with the package. |
+| `_test.yml` | Reusable | Lint, test and build `cabscribe` and `common`; lint `cabscribe-desktop`. |
+| `_build-desktop.yml` | Reusable | Builds the Linux `.deb` and uploads it as the `cabscribe-linux-deb` artifact. |
+| `_deploy-web.yml` | Reusable | Production build, then FTPS upload of `dist/apps/cabscribe/browser`. |
+
+To release, make sure the version in the three `package.json` files matches,
+then push a tag such as `v2.0.0`.
+
+### Namecheap deployment setup
+
+Create a repository environment named `production` (Settings → Environments)
+and add:
+
+- Secrets: `NAMECHEAP_FTP_SERVER` (host name), `NAMECHEAP_FTP_USERNAME`,
+  `NAMECHEAP_FTP_PASSWORD`. Use a dedicated FTP account limited to the target
+  folder (cPanel → FTP Accounts).
+- Variable `NAMECHEAP_REMOTE_DIR` (optional): remote folder ending in `/`,
+  default `public_html/`.
+- Variable `DEPLOY_BASE_HREF` (optional): set to e.g. `/cabscribe/` when the
+  app is served from a sub-folder; default is `/`.
+
+The app uses hash routing, so no server rewrite rules are needed. Web Serial
+requires HTTPS and a Chromium-based browser, so enable SSL for the domain.
+The upload mirrors the build output and removes remote files that are no
+longer part of it, so use a folder that holds only this app.
+
 ## Project documentation
 
 - [Product requirements](docs/prd.md)

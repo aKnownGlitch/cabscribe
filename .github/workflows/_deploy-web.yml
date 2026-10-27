@@ -1,0 +1,33 @@
+name: Deploy web app to Namecheap (reusable)
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Build the production web app
+        env:
+          DEPLOY_BASE_HREF: ${{ vars.DEPLOY_BASE_HREF }}
+        run: |
+          if [ -n "$DEPLOY_BASE_HREF" ]; then
+            npx nx build cabscribe --configuration=production --baseHref="$DEPLOY_BASE_HREF" --output-style=static
+          else
+            npx nx build cabscribe --configuration=production --output-style=static
+          fi
+      - name: Upload to Namecheap over FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.NAMECHEAP_FTP_SERVER }}
+          username: ${{ secrets.NAMECHEAP_FTP_USERNAME }}
+          password: ${{ secrets.NAMECHEAP_FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: dist/apps/cabscribe/browser/
+          server-dir: ${{ vars.NAMECHEAP_REMOTE_DIR || 'public_html/' }}
