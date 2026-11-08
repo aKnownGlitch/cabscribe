@@ -102,7 +102,7 @@ export class WebSerialDccTransport implements DccTransport {
     try {
       await writer.write(new TextEncoder().encode('<R LOCOID>'));
       for (const listener of this.serialListeners) {
-        listener({ direction: 'outgoing', message: '<R LOCOID>' });
+        listener({ direction: 'outgoing', message: '<R LOCOID>', timestamp: new Date() });
       }
     } catch (error) {
       throw this.connectionError(error);
@@ -123,6 +123,24 @@ export class WebSerialDccTransport implements DccTransport {
       'unsupported',
       'DCC-EX Service Mode CV writing is not implemented; no command was sent.'
     );
+  }
+
+  async sendRawCommand(command: string): Promise<void> {
+    const port = this.activePort;
+    if (!port?.writable || this.closing) {
+      throw new DccTransportError('not-connected', 'The serial port is not writable.');
+    }
+    const writer = port.writable.getWriter();
+    try {
+      await writer.write(new TextEncoder().encode(command));
+      for (const listener of this.serialListeners) {
+        listener({ direction: 'outgoing', message: command, timestamp: new Date() });
+      }
+    } catch (error) {
+      throw this.connectionError(error);
+    } finally {
+      writer.releaseLock();
+    }
   }
 
   onDisconnected(listener: (message: string) => void): () => void {
@@ -165,7 +183,7 @@ export class WebSerialDccTransport implements DccTransport {
           const message = done ? decoder.decode() : decoder.decode(value, { stream: true });
           if (message) {
             for (const listener of this.serialListeners) {
-              listener({ direction: 'incoming', message });
+              listener({ direction: 'incoming', message, timestamp: new Date() });
             }
           }
           if (done) {

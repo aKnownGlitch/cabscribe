@@ -1,0 +1,66 @@
+<section class="debug-panel" aria-labelledby="debug-title">
+  <div class="debug-heading">
+    <h2 id="debug-title">Serial monitor</h2>
+    @if ( session.operation().kind === 'reading' || session.operation().kind ===
+    'writing' || session.operation().kind === 'verifying' ) {
+    <mat-progress-spinner
+      diameter="20"
+      mode="indeterminate"
+      aria-label="Operation in progress"
+    ></mat-progress-spinner>
+    }
+    <button
+      mat-flat-button
+      type="button"
+      class="clear-debug-button write-button"
+      (click)="session.serialLog.set([])"
+      [disabled]="session.serialLog().length === 0"
+      aria-controls="serial-debug-output"
+    >
+      Clear
+    </button>
+  </div>
+  <textarea
+    #debugOutput
+    id="serial-debug-output"
+    class="debug-output"
+    aria-label="Serial input and output log"
+    readonly
+    wrap="off"
+    spellcheck="false"
+    [value]="serialLogText()"
+    placeholder="Serial input and output will appear here when available."
+  ></textarea>
+  <div class="debug-input-area">
+    <mat-form-field
+      appearance="outline"
+      class="command-input-field"
+      subscriptSizing="dynamic"
+    >
+      <mat-label>Send command to command station</mat-label>
+      <input
+        id="debug-command-input"
+        matInput
+        type="text"
+        aria-label="Send command to command station"
+        [ngModel]="commandInput()"
+        (ngModelChange)="commandInput.set($event)"
+        [disabled]="!isConnected() || commandSending()"
+        placeholder="e.g., &lt;1&gt; or &lt;f 3 144&gt;"
+        (keyup.enter)="sendCommand()"
+        [ngModelOptions]="{ standalone: true }"
+      />
+    </mat-form-field>
+    <button
+      mat-flat-button
+      type="button"
+      class="send-command-button write-button"
+      (click)="sendCommand()"
+      [disabled]="!isConnected() || commandSending() || commandInput().trim().length === 0"
+      aria-label="Send command to command station"
+      title="Send command to command station"
+    >
+      Send
+    </button>
+  </div>
+</section>

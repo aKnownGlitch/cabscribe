@@ -16,6 +16,7 @@ export interface DccConnectionInfo {
 export interface SerialLogMessage {
   direction: 'outgoing' | 'incoming';
   message: string;
+  timestamp?: Date;
 }
 
 export type DccTransportErrorCode =
@@ -47,6 +48,7 @@ export interface DccTransport {
   disconnect(): Promise<void>;
   readCv(address: number, cv: number): Promise<number>;
   writeCv(address: number, cv: number, value: number): Promise<void>;
+  sendRawCommand?(command: string): Promise<void>;
   onDisconnected?(listener: (message: string) => void): () => void;
   onSerialMessage?(listener: (message: SerialLogMessage) => void): () => void;
 }

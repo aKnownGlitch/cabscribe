@@ -9,20 +9,20 @@ import {
   effect,
   inject,
   signal,
-} from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSelectModule } from '@angular/material/select';
-import { Router, RouterLink, RouterOutlet } from '@angular/router';
-import { map } from 'rxjs';
-import { DccSessionService } from 'common';
-import { APP_RELEASE_DATE, APP_VERSION } from './app-version';
-import { CV_TABLE_PATH } from './app.routes';
-import { parseInteger } from './parse-integer';
+} from "@angular/core";
+import { toSignal } from "@angular/core/rxjs-interop";
+import { FormsModule } from "@angular/forms";
+import { MatButtonModule } from "@angular/material/button";
+import { MatFormFieldModule } from "@angular/material/form-field";
+import { MatInputModule } from "@angular/material/input";
+import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
+import { MatSelectModule } from "@angular/material/select";
+import { Router, RouterLink, RouterOutlet } from "@angular/router";
+import { map } from "rxjs";
+import { DccSessionService } from "common";
+import { APP_RELEASE_DATE, APP_VERSION } from "./app-version";
+import { CV_TABLE_PATH, DEBUG_PATH } from "./app.routes";
+import { parseInteger } from "./parse-integer";
 
 @Component({
   imports: [
@@ -35,61 +35,61 @@ import { parseInteger } from './parse-integer';
     RouterLink,
     RouterOutlet,
   ],
-  selector: 'app-root',
-  templateUrl: './app.html',
-  styleUrl: './app.scss',
+  selector: "app-root",
+  templateUrl: "./app.html",
+  styleUrl: "./app.scss",
   // Page components render inside this shell and share its stylesheet.
   encapsulation: ViewEncapsulation.None,
 })
 export class App implements OnInit {
-  private static readonly selectedPortStorageKey = 'cabscribe.selectedSerialPort';
+  private static readonly selectedPortStorageKey =
+    "cabscribe.selectedSerialPort";
   private readonly router = inject(Router);
   readonly version = APP_VERSION;
   readonly releaseDate = APP_RELEASE_DATE;
+  readonly cvTablePath = CV_TABLE_PATH;
+  readonly debugPath = DEBUG_PATH;
   readonly session = inject(DccSessionService);
   readonly targetAddress = this.session.targetAddress;
   private readonly currentUrl = toSignal(
     this.router.events.pipe(map(() => this.router.url)),
-    { initialValue: this.router.url }
+    { initialValue: this.router.url },
   );
   readonly onTablePage = computed(
-    () => this.currentUrl().split(/[?#]/)[0] === `/${CV_TABLE_PATH}`
+    () => this.currentUrl().split(/[?#]/)[0] === `/${CV_TABLE_PATH}`,
   );
-  readonly pageTitle = computed(() =>
-    this.onTablePage()
-      ? 'Read configuration variables'
-      : 'Read or write a configuration variable'
+  readonly onDebugPage = computed(
+    () => this.currentUrl().split(/[?#]/)[0] === `/${DEBUG_PATH}`,
   );
-  readonly selectedPortId = signal('');
+  readonly pageTitle = computed(() => {
+    if (this.onTablePage()) {
+      return "Read configuration variables";
+    }
+    return this.onDebugPage()
+      ? "Controller debug"
+      : "Read or write a configuration variable";
+  });
+  readonly selectedPortId = signal("");
   private readonly viewReady = signal(false);
-  readonly debugLogVisible = signal(true);
-  readonly serialLogText = computed(() =>
-    this.session
-      .serialLog()
-      .map(({ direction, message }) => {
-        const prefix = direction === 'outgoing' ? 'CS> ' : 'DC< ';
-        return message
-          .replace(/\r\n?/g, '\n')
-          .split('\n')
-          .filter((line) => line.length > 0)
-          .map((line) => `${prefix}${line}`)
-          .join('\n');
-      })
-      .join('\n')
-  );
   readonly isConnected = computed(
-    () => this.session.connection().status === 'connected'
+    () => this.session.connection().status === "connected",
   );
   readonly hasSelectedPort = computed(() =>
-    this.session.ports().some((port) => port.id === this.selectedPortId())
+    this.session.ports().some((port) => port.id === this.selectedPortId()),
   );
   readonly confirmingAddress = computed(
-    () => this.session.addressConfirmation().status === 'confirming'
+    () => this.session.addressConfirmation().status === "confirming",
   );
   readonly canConfirmAddress = computed(() => {
     const address = parseInteger(this.targetAddress(), 1);
-    return this.hasSelectedPort() && this.isConnected() && this.session.canConfirmAddress &&
-      !this.operationInProgress() && address !== null && address <= 10293;
+    return (
+      this.hasSelectedPort() &&
+      this.isConnected() &&
+      this.session.canConfirmAddress &&
+      !this.operationInProgress() &&
+      address !== null &&
+      address <= 10293
+    );
   });
   readonly operationInProgress = this.session.operationInProgress;
   readonly canConnect = computed(
@@ -97,16 +97,11 @@ export class App implements OnInit {
       !this.isConnected() &&
       !this.operationInProgress() &&
       this.session.ports().some((port) => port.id === this.selectedPortId()) &&
-      !['scanning', 'connecting'].includes(
-        this.session.connection().status
-      )
+      !["scanning", "connecting"].includes(this.session.connection().status),
   );
 
-  @ViewChild('connectionDialog')
+  @ViewChild("connectionDialog")
   private connectionDialog?: ElementRef<HTMLDialogElement>;
-  @ViewChild('debugOutput')
-  private debugOutput?: ElementRef<HTMLTextAreaElement>;
-
   constructor() {
     afterNextRender(() => {
       this.viewReady.set(true);
@@ -114,14 +109,6 @@ export class App implements OnInit {
     effect(() => {
       if (this.viewReady() && !this.isConnected()) {
         this.openConnectionDialog();
-      }
-    });
-    effect(() => {
-      this.serialLogText();
-      const visible = this.debugLogVisible();
-      const textarea = this.debugOutput?.nativeElement;
-      if (visible && textarea) {
-        textarea.scrollTop = textarea.scrollHeight;
       }
     });
   }
@@ -141,8 +128,8 @@ export class App implements OnInit {
   }
 
   updateTargetAddress(value: string | number | null): void {
-    this.targetAddress.set(value === null ? '' : String(value));
-    this.session.addressConfirmation.set({ status: 'idle' });
+    this.targetAddress.set(value === null ? "" : String(value));
+    this.session.addressConfirmation.set({ status: "idle" });
   }
 
   async confirmAddress(): Promise<void> {
@@ -161,11 +148,8 @@ export class App implements OnInit {
 
   selectPort(portId: string): void {
     this.selectedPortId.set(portId);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(
-        App.selectedPortStorageKey,
-        portId
-      );
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(App.selectedPortStorageKey, portId);
     }
   }
 
@@ -197,19 +181,15 @@ export class App implements OnInit {
 
   async disconnect(): Promise<void> {
     await this.session.disconnect();
-    if (this.session.connection().status === 'disconnected') {
+    if (this.session.connection().status === "disconnected") {
       this.closeConnectionDialog();
     }
   }
 
-  toggleCvTable(): void {
-    void this.router.navigateByUrl(this.onTablePage() ? '/' : `/${CV_TABLE_PATH}`);
-  }
-
   private readStoredPortId(): string {
-    if (typeof window === 'undefined') {
-      return '';
+    if (typeof window === "undefined") {
+      return "";
     }
-    return window.localStorage.getItem(App.selectedPortStorageKey) ?? '';
+    return window.localStorage.getItem(App.selectedPortStorageKey) ?? "";
   }
 }

@@ -14,6 +14,7 @@ export interface CabscribeDesktopBridge {
   disconnect(): Promise<void>;
   readCv(address: number, cv: number): Promise<number>;
   writeCv(address: number, cv: number, value: number): Promise<void>;
+  sendRawCommand?(command: string): Promise<void>;
   onDisconnected(listener: (message: string) => void): () => void;
   onSerialMessage(listener: (message: SerialLogMessage) => void): () => void;
 }
@@ -49,6 +50,13 @@ export class ElectronDccTransport implements DccTransport {
 
   writeCv(address: number, cv: number, value: number): Promise<void> {
     return this.bridge.writeCv(address, cv, value);
+  }
+
+  sendRawCommand(command: string): Promise<void> {
+    if (this.bridge.sendRawCommand) {
+      return this.bridge.sendRawCommand(command);
+    }
+    return Promise.reject(new Error('sendRawCommand is not available'));
   }
 
   onDisconnected(listener: (message: string) => void): () => void {

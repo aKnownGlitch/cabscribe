@@ -408,6 +408,24 @@ export class DccSessionService {
     }
   }
 
+  async sendCommand(command: string): Promise<void> {
+    if (this.connection().status !== 'connected') {
+      throw new Error('Connect to a command station before sending a command.');
+    }
+    if (!this.transport.sendRawCommand) {
+      throw new Error('Sending raw commands is not supported on this connection.');
+    }
+    try {
+      await this.transport.sendRawCommand(command);
+    } catch (error) {
+      throw new Error(
+        error instanceof Error && error.message
+          ? error.message
+          : 'Failed to send command to command station.'
+      );
+    }
+  }
+
   private connectionFailure(error: unknown): ConnectionState {
     const message = this.errorMessage(error, 'The serial connection failed.');
     return {

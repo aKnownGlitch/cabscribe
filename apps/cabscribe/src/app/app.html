@@ -13,17 +13,32 @@
     <span class="product-context">DCC decoder programmer</span>
     <div class="connection-actions">
       <span class="mode-chip" role="status" aria-live="polite">
-        {{ connection.status === 'connected' ? 'Service Mode' : 'Disconnected' }}
+        {{ connection.status === 'connected' ? 'Service Mode' : 'Disconnected'
+        }}
       </span>
       <button
+        [routerLink]="['/']"
+        class="editor-toggle-button"
+        type="button"
+        aria-label="Single CV editor"
+        title="Single CV editor"
+        [attr.aria-current]="!onDebugPage() && !onTablePage() ? 'page' : null"
+        [class.active]="!onDebugPage() && !onTablePage()"
+      >
+        <svg class="filled-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+          />
+        </svg>
+      </button>
+      <button
+        [routerLink]="['/', debugPath]"
         class="debug-toggle-button"
         type="button"
-        aria-label="Show serial debug"
-        title="Show serial debug"
-        aria-controls="serial-debug-output"
-        [attr.aria-pressed]="debugLogVisible()"
-        [class.active]="debugLogVisible()"
-        (click)="debugLogVisible.set(!debugLogVisible())"
+        aria-label="Controller debug"
+        title="Controller debug"
+        [attr.aria-current]="onDebugPage() ? 'page' : null"
+        [class.active]="onDebugPage()"
       >
         <svg class="filled-icon" viewBox="0 0 24 24" aria-hidden="true">
           <path
@@ -32,13 +47,13 @@
         </svg>
       </button>
       <button
+        [routerLink]="['/', cvTablePath]"
         class="table-toggle-button"
         type="button"
         aria-label="Read CV table"
         title="Read CV table"
-        [attr.aria-pressed]="onTablePage()"
+        [attr.aria-current]="onTablePage() ? 'page' : null"
         [class.active]="onTablePage()"
-        (click)="toggleCvTable()"
       >
         <svg class="filled-icon" viewBox="0 0 24 24" aria-hidden="true">
           <path
@@ -55,9 +70,7 @@
         (click)="openConnectionDialog()"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M4 7h9m4 0h3M4 17h3m4 0h9M13 5v4M7 15v4"
-          />
+          <path d="M4 7h9m4 0h3M4 17h3m4 0h9M13 5v4M7 15v4" />
           <circle cx="15" cy="7" r="2" />
           <circle cx="9" cy="17" r="2" />
         </svg>
@@ -72,31 +85,40 @@
       </div>
     </section>
 
-    <section class="operation-card address-card" aria-labelledby="target-address-title">
+    @if (!onDebugPage()) {
+    <section
+      class="operation-card address-card"
+      aria-labelledby="target-address-title"
+    >
       <div class="card-heading">
         <div>
           <h2 id="target-address-title">Programming Target Address</h2>
         </div>
         <p id="address-confirmation-help" class="confirmation-help">
-          Confirm reads a locomotive on the programming track. Accessory confirmation is not supported.
+          Confirm reads a locomotive on the programming track. Accessory
+          confirmation is not supported.
         </p>
       </div>
       <div class="address-controls">
-      <mat-form-field appearance="outline" class="address-field" subscriptSizing="dynamic">
-        <mat-label>Locomotive or Accessory ID</mat-label>
-        <input
-          matInput
-          type="number"
-          inputmode="numeric"
-          min="1"
-          step="1"
-          [ngModel]="targetAddress()"
-          (ngModelChange)="updateTargetAddress($event)"
-          [disabled]="!isConnected() || operationInProgress()"
-          [ngModelOptions]="{ standalone: true }"
-          placeholder="Enter an address"
-        />
-      </mat-form-field>
+        <mat-form-field
+          appearance="outline"
+          class="address-field"
+          subscriptSizing="dynamic"
+        >
+          <mat-label>Locomotive or Accessory ID</mat-label>
+          <input
+            matInput
+            type="number"
+            inputmode="numeric"
+            min="1"
+            step="1"
+            [ngModel]="targetAddress()"
+            (ngModelChange)="updateTargetAddress($event)"
+            [disabled]="!isConnected() || operationInProgress()"
+            [ngModelOptions]="{ standalone: true }"
+            placeholder="Enter an address"
+          />
+        </mat-form-field>
         <button
           mat-flat-button
           type="button"
@@ -108,59 +130,24 @@
           {{ confirmingAddress() ? 'Confirming…' : 'Confirm' }}
         </button>
       </div>
-      @let confirmation = session.addressConfirmation();
-      @if (confirmation.status === 'confirming') {
-        <p class="address-confirmation-status" role="status">Checking decoder address…</p>
+      @let confirmation = session.addressConfirmation(); @if
+      (confirmation.status === 'confirming') {
+      <p class="address-confirmation-status" role="status">
+        Checking decoder address…
+      </p>
       } @else if (confirmation.status === 'confirmed') {
-        <p class="address-confirmation-status" role="status">{{ confirmation.message }}</p>
+      <p class="address-confirmation-status" role="status">
+        {{ confirmation.message }}
+      </p>
       } @else if (confirmation.status === 'error') {
-        <p class="address-confirmation-status error" role="alert">{{ confirmation.message }}</p>
+      <p class="address-confirmation-status error" role="alert">
+        {{ confirmation.message }}
+      </p>
       }
     </section>
+    }
 
     <router-outlet />
-
-    @if (debugLogVisible()) {
-    <section class="debug-panel" aria-labelledby="debug-title">
-      <div class="debug-heading">
-        <div>
-          <h2 id="debug-title">Debug output</h2>
-        </div>
-        @if (
-          session.operation().kind === 'reading' ||
-          session.operation().kind === 'writing' ||
-          session.operation().kind === 'verifying'
-        ) {
-          <mat-progress-spinner
-            diameter="20"
-            mode="indeterminate"
-            aria-label="Operation in progress"
-          ></mat-progress-spinner>
-        }
-        <button
-          mat-flat-button
-          type="button"
-          class="clear-debug-button write-button"
-          (click)="session.serialLog.set([])"
-          [disabled]="session.serialLog().length === 0"
-          aria-controls="serial-debug-output"
-        >
-          Clear
-        </button>
-      </div>
-      <textarea
-        #debugOutput
-        id="serial-debug-output"
-        class="debug-output"
-        aria-label="Serial input and output log"
-        readonly
-        wrap="off"
-        spellcheck="false"
-        [value]="serialLogText()"
-        placeholder="Serial input and output will appear here when available."
-      ></textarea>
-    </section>
-    }
   </main>
 
   <footer class="app-footer">
@@ -178,8 +165,17 @@
       aria-label="View CABSCRIBE on GitHub (opens in a new browser tab)"
       title="View CABSCRIBE on GitHub"
     >
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
-        <path d="M12 .75a11.25 11.25 0 0 0-3.558 21.923c.563.104.768-.244.768-.542 0-.267-.01-.975-.015-1.913-3.13.68-3.791-1.51-3.791-1.51-.512-1.3-1.25-1.646-1.25-1.646-1.022-.699.077-.685.077-.685 1.13.08 1.724 1.16 1.724 1.16 1.005 1.723 2.637 1.225 3.279.937.102-.728.393-1.225.715-1.507-2.499-.284-5.126-1.25-5.126-5.564 0-1.229.439-2.233 1.16-3.02-.116-.284-.503-1.428.11-2.977 0 0 .945-.303 3.094 1.154A10.78 10.78 0 0 1 12 6.18c.956.005 1.918.13 2.817.38 2.148-1.457 3.09-1.154 3.09-1.154.616 1.55.228 2.693.112 2.977.722.787 1.159 1.791 1.159 3.02 0 4.326-2.631 5.277-5.138 5.556.404.35.765 1.043.765 2.1 0 1.516-.014 2.74-.014 3.112 0 .3.203.65.774.54A11.251 11.251 0 0 0 12 .75Z" />
+      <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path
+          d="M12 .75a11.25 11.25 0 0 0-3.558 21.923c.563.104.768-.244.768-.542 0-.267-.01-.975-.015-1.913-3.13.68-3.791-1.51-3.791-1.51-.512-1.3-1.25-1.646-1.25-1.646-1.022-.699.077-.685.077-.685 1.13.08 1.724 1.16 1.724 1.16 1.005 1.723 2.637 1.225 3.279.937.102-.728.393-1.225.715-1.507-2.499-.284-5.126-1.25-5.126-5.564 0-1.229.439-2.233 1.16-3.02-.116-.284-.503-1.428.11-2.977 0 0 .945-.303 3.094 1.154A10.78 10.78 0 0 1 12 6.18c.956.005 1.918.13 2.817.38 2.148-1.457 3.09-1.154 3.09-1.154.616 1.55.228 2.693.112 2.977.722.787 1.159 1.791 1.159 3.02 0 4.326-2.631 5.277-5.138 5.556.404.35.765 1.043.765 2.1 0 1.516-.014 2.74-.014 3.112 0 .3.203.65.774.54A11.251 11.251 0 0 0 12 .75Z"
+        />
       </svg>
     </a>
   </footer>
@@ -206,131 +202,116 @@
     </p>
     <p class="welcome-disclaimer">
       Provided “as is” under the MIT License, without warranty. Use at your own
-      risk; the authors are not liable for damages arising from its use.
-      Check your setup before programming a decoder.
-      Version {{ version }}, {{ releaseDate }}.
+      risk; the authors are not liable for damages arising from its use. Check
+      your setup before programming a decoder. Version {{ version }}, {{
+      releaseDate }}.
     </p>
     <hr class="welcome-divider" />
     <h2 id="connection-dialog-title">Serial connection</h2>
     <p>
-      Choose the serial port for your DCC-EX command station.
-      @if (!session.canRequestPort) {
-        Your selection is remembered on this device.
-      }
+      Choose the serial port for your DCC-EX command station. @if
+      (!session.canRequestPort) { Your selection is remembered on this device. }
     </p>
     @if (session.canRequestPort) {
-      <p>
-        Use Choose device to authorize a serial port in this browser. Previously
-        granted devices appear in the list. After refreshing the page, select your
-        device again and click Connect. Your browser may remember its permission.
-        Use HTTPS or localhost.
-      </p>
+    <p>
+      Use Choose device to authorize a serial port in this browser. Previously
+      granted devices appear in the list. After refreshing the page, select your
+      device again and click Connect. Your browser may remember its permission.
+      Use HTTPS or localhost.
+    </p>
+    } @if (connection.status !== 'connected') {
+    <mat-form-field appearance="outline" class="port-select">
+      <mat-label>Serial port</mat-label>
+      <mat-select
+        [value]="selectedPortId()"
+        (selectionChange)="selectPort($event.value)"
+        [disabled]="session.ports().length === 0"
+      >
+        @for (port of session.ports(); track port.id) {
+        <mat-option [value]="port.id">{{ port.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    @if (connection.status === 'scanning') {
+    <p class="dialog-status" role="status">Scanning for serial ports…</p>
+    } @else if ( session.ports().length === 0 && connection.status !==
+    'unavailable' ) {
+    <p class="dialog-status">
+      No serial ports are available. Connect the command station and refresh the
+      list.
+    </p>
+    } @if ( connection.status === 'unavailable' || connection.status === 'error'
+    ) {
+    <p class="dialog-status error" role="alert">{{ connection.message }}</p>
     }
-
-    @if (connection.status !== 'connected') {
-      <mat-form-field appearance="outline" class="port-select">
-        <mat-label>Serial port</mat-label>
-        <mat-select
-          [value]="selectedPortId()"
-          (selectionChange)="selectPort($event.value)"
-          [disabled]="session.ports().length === 0"
-        >
-          @for (port of session.ports(); track port.id) {
-            <mat-option [value]="port.id">{{ port.label }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-      @if (connection.status === 'scanning') {
-        <p class="dialog-status" role="status">Scanning for serial ports…</p>
-      } @else if (
-        session.ports().length === 0 &&
-        connection.status !== 'unavailable'
-      ) {
-        <p class="dialog-status">
-          No serial ports are available. Connect the command station and
-          refresh the list.
-        </p>
-      }
-      @if (
-        connection.status === 'unavailable' ||
-        connection.status === 'error'
-      ) {
-        <p class="dialog-status error" role="alert">
-          {{ connection.message }}
-        </p>
-      }
-      <div class="dialog-actions">
-        @if (session.canRequestPort) {
-          <button
-            mat-button
-            type="button"
-            (click)="authorizePort()"
-            [disabled]="
+    <div class="dialog-actions">
+      @if (session.canRequestPort) {
+      <button
+        mat-button
+        type="button"
+        (click)="authorizePort()"
+        [disabled]="
               connection.status === 'scanning' ||
               connection.status === 'connecting' ||
               operationInProgress()
             "
-          >
-            Choose device
-          </button>
-        }
-        <button
-          mat-button
-          type="button"
-          class="cancel-button"
-          (click)="refreshPorts()"
-          [disabled]="
+      >
+        Choose device
+      </button>
+      }
+      <button
+        mat-button
+        type="button"
+        class="cancel-button"
+        (click)="refreshPorts()"
+        [disabled]="
             connection.status === 'scanning' ||
             connection.status === 'connecting' ||
             operationInProgress()
           "
-        >
-          Refresh ports
-        </button>
-        <button
-          mat-flat-button
-          type="button"
-          class="confirm-button"
-          (click)="connect()"
-          [disabled]="!canConnect()"
-        >
-          @if (connection.status === 'connecting') {
-            <mat-progress-spinner
-              diameter="17"
-              mode="indeterminate"
-              aria-label="Connecting"
-            ></mat-progress-spinner>
-          } @else {
-            Connect
-          }
-        </button>
-      </div>
+      >
+        Refresh ports
+      </button>
+      <button
+        mat-flat-button
+        type="button"
+        class="confirm-button"
+        (click)="connect()"
+        [disabled]="!canConnect()"
+      >
+        @if (connection.status === 'connecting') {
+        <mat-progress-spinner
+          diameter="17"
+          mode="indeterminate"
+          aria-label="Connecting"
+        ></mat-progress-spinner>
+        } @else { Connect }
+      </button>
+    </div>
     } @else {
-      <p class="dialog-status">
-        Connected to {{ connection.port.label }}.
-        @if (!connection.capabilities.serviceModeRead) {
-          {{ connection.message }}
-        }
-      </p>
-      <div class="dialog-actions">
-        <button
-          mat-button
-          type="button"
-          class="cancel-button"
-          (click)="closeConnectionDialog()"
-        >
-          Close
-        </button>
-        <button
-          mat-stroked-button
-          type="button"
-          class="disconnect-button"
-          (click)="disconnect()"
-          [disabled]="operationInProgress()"
-        >
-          Disconnect
-        </button>
-      </div>
+    <p class="dialog-status">
+      Connected to {{ connection.port.label }}. @if
+      (!connection.capabilities.serviceModeRead) { {{ connection.message }} }
+    </p>
+    <div class="dialog-actions">
+      <button
+        mat-button
+        type="button"
+        class="cancel-button"
+        (click)="closeConnectionDialog()"
+      >
+        Close
+      </button>
+      <button
+        mat-stroked-button
+        type="button"
+        class="disconnect-button"
+        (click)="disconnect()"
+        [disabled]="operationInProgress()"
+      >
+        Disconnect
+      </button>
+    </div>
     }
   </div>
 </dialog>

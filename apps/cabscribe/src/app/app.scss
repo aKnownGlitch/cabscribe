@@ -72,6 +72,7 @@ app-root {
 }
 
 .connection-settings-button,
+.editor-toggle-button,
 .debug-toggle-button,
 .table-toggle-button {
   display: grid;
@@ -87,6 +88,7 @@ app-root {
 }
 
 .connection-settings-button:hover,
+.editor-toggle-button:hover,
 .debug-toggle-button:hover,
 .table-toggle-button:hover {
   border-color: #aebfc6;
@@ -94,12 +96,14 @@ app-root {
 }
 
 .connection-settings-button:focus-visible,
+.editor-toggle-button:focus-visible,
 .debug-toggle-button:focus-visible,
 .table-toggle-button:focus-visible {
   outline: 3px solid rgb(23 107 104 / 28%);
   outline-offset: 2px;
 }
 
+.editor-toggle-button.active,
 .debug-toggle-button.active,
 .table-toggle-button.active {
   border-color: #176b68;
@@ -107,6 +111,7 @@ app-root {
   color: #176b68;
 }
 
+.editor-toggle-button svg.filled-icon,
 .debug-toggle-button svg.filled-icon,
 .table-toggle-button svg.filled-icon {
   fill: currentColor;
@@ -114,6 +119,7 @@ app-root {
 }
 
 .connection-settings-button svg,
+.editor-toggle-button svg,
 .debug-toggle-button svg,
 .table-toggle-button svg {
   width: 19px;
@@ -133,6 +139,12 @@ app-root {
   width: min(100% - 64px, 1200px);
   margin: 0 auto;
   padding: 32px 0 36px;
+}
+
+app-debug-page {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
 }
 
 .page-heading {
@@ -281,7 +293,6 @@ h1 {
   font-size: 15px;
 }
 
-
 .debug-output {
   width: 100%;
   min-height: 0;
@@ -293,7 +304,7 @@ h1 {
   padding: 12px 14px;
   background: #17252d;
   color: #d9e8e9;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 12px;
   line-height: 1.55;
   tab-size: 2;
@@ -303,6 +314,22 @@ h1 {
 .debug-output:focus-visible {
   outline: 3px solid rgb(23 107 104 / 28%);
   outline-offset: 2px;
+}
+
+.debug-input-area {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  margin-top: 12px;
+}
+
+.debug-input-area .command-input-field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.debug-input-area .send-command-button {
+  flex-shrink: 0;
 }
 
 .card-heading {
@@ -462,7 +489,7 @@ app-cv-table-page {
 
 .cv-number,
 .cv-value {
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   white-space: nowrap;
 }
 
@@ -472,13 +499,13 @@ app-cv-table-page {
   font-size: 11px;
 }
 
-.cv-table tr[data-status='failed'] .cv-status {
+.cv-table tr[data-status="failed"] .cv-status {
   color: #b3261e;
   font-weight: 600;
 }
 
-.cv-table tr[data-status='not-applicable'],
-.cv-table tr[data-status='unsupported'] {
+.cv-table tr[data-status="not-applicable"],
+.cv-table tr[data-status="unsupported"] {
   color: #697984;
 }
 
@@ -539,7 +566,7 @@ app-cv-table-page {
 
 .footer-version::before {
   margin-right: 8px;
-  content: '\00b7';
+  content: "\00b7";
 }
 
 .write-dialog,
