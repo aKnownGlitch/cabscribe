@@ -96,11 +96,11 @@ ipcMain.handle('cabscribe:serial:connect', async (_event, portId) => {
 
   return {
     capabilities: {
-      serviceModeRead: false,
+      serviceModeRead: true,
       serviceModeWrite: false,
     },
     message:
-      'The serial port is open at 115200 baud. Locomotive address confirmation is available; CV reading and writing are not enabled yet.',
+      'The serial port is open at 115200 baud. CV writing is not enabled yet.',
   };
 });
 
@@ -122,16 +122,31 @@ ipcMain.handle('cabscribe:serial:disconnect', async () => {
   });
 });
 
-ipcMain.handle('cabscribe:dcc:read-cv', async (_event, address, cv) => {
-  if (!Number.isSafeInteger(address) || address < 1) {
-    throw new Error('Enter a positive whole-number locomotive or accessory ID.');
+ipcMain.handle('cabscribe:dcc:read-cv', async (_event, cv) => {
+  if (!Number.isSafeInteger(cv) || cv < 1 || cv > 1024) {
+    throw new Error('Enter a CV address from 1 to 1024.');
   }
-  if (!Number.isSafeInteger(cv) || cv < 1) {
-    throw new Error('Enter a positive whole-number CV address.');
+  const port = activePort;
+  if (!port?.isOpen) {
+    throw new Error('Connect to a command station before reading a CV.');
   }
-  throw new Error(
-    'DCC-EX Service Mode CV reading is not implemented; no command was sent.'
-  );
+  const command = `<R ${cv}>`;
+  await new Promise((resolve, reject) => {
+    port.write(command, (error) => {
+      if (error) {
+        reject(new Error(`CV read could not be sent: ${error.message}`));
+        return;
+      }
+      port.drain((drainError) => {
+        if (drainError) {
+          reject(new Error(`CV read transmission failed: ${drainError.message}`));
+        } else {
+          reportSerialMessage('outgoing', command);
+          resolve();
+        }
+      });
+    });
+  });
 });
 
 ipcMain.handle('cabscribe:dcc:read-address', async () => {

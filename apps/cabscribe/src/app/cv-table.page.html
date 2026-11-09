@@ -57,6 +57,10 @@
     </mat-form-field>
   </div>
 
+  <p class="scan-hint">Service Mode reads the decoder on the programming track; the target address does not select the decoder.</p>
+  @if (readUnavailableReason(); as reason) {
+    <p class="scan-hint" role="status">{{ reason }}</p>
+  }
   @if (rangeError(); as error) {
     <p class="scan-hint error" role="alert">{{ error }}</p>
   } @else {

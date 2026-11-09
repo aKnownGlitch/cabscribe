@@ -4,6 +4,7 @@ import { provideRouter, Router } from "@angular/router";
 import { App } from "./app";
 import { routes } from "./app.routes";
 import { CvEditorPage } from "./cv-editor.page";
+import { CvTablePage } from "./cv-table.page";
 import {
   CvScanService,
   DCC_TRANSPORT,
@@ -575,6 +576,57 @@ describe("App", () => {
     expect(app.selectedCvDefinition()).toBeNull();
   });
 
+  it("enables range reads when ready and displays the returned values", async () => {
+    let finishFirst!: (value: number) => void;
+    const transport = {
+      listPorts: vi.fn().mockResolvedValue([{ id: "test", label: "DCC-EX" }]),
+      connect: vi.fn().mockResolvedValue({
+        capabilities: { serviceModeRead: true, serviceModeWrite: false },
+      }),
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      readCv: vi.fn()
+        .mockImplementationOnce(() => new Promise<number>((resolve) => { finishFirst = resolve; }))
+        .mockResolvedValueOnce(42),
+      writeCv: vi.fn(),
+    };
+    TestBed.overrideProvider(DCC_TRANSPORT, { useValue: transport });
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    await TestBed.inject(Router).navigateByUrl("/cv-table");
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    const page = fixture.debugElement.query(By.directive(CvTablePage)).componentInstance as CvTablePage;
+    const button = element.querySelector<HTMLButtonElement>(".scan-button")!;
+    expect(button.disabled).toBe(true);
+    expect(element.textContent).toContain("Connect to a command station to read CVs.");
+    await app.session.connect("test");
+    fixture.detectChanges();
+    expect(button.disabled).toBe(true);
+    expect(element.textContent).toContain("Enter a target address to read CVs.");
+    app.updateTargetAddress(3);
+    page.lastCv.set("2");
+    fixture.detectChanges();
+    expect(button.disabled).toBe(false);
+    button.click();
+    fixture.detectChanges();
+    expect(transport.readCv).toHaveBeenCalledWith(3, 1);
+    expect(button.textContent).toContain("Cancel");
+    expect(element.querySelector<HTMLInputElement>(".first-cv-input")?.disabled).toBe(true);
+    finishFirst(3);
+    await vi.waitFor(() => expect(page.scan.scanning()).toBe(false));
+    fixture.detectChanges();
+    expect(transport.readCv.mock.calls).toEqual([[3, 1], [3, 2]]);
+    expect(page.scan.rows().map((row) => [row.cv, row.value])).toEqual([[1, 3], [2, 42]]);
+    expect(element.querySelectorAll('tr[data-status="value"]')).toHaveLength(2);
+    expect(button.textContent).toContain("Read");
+    page.firstCv.set("3");
+    fixture.detectChanges();
+    expect(button.disabled).toBe(true);
+    expect(element.textContent).toContain("The first CV must not be greater than the last CV.");
+  });
+
   it("navigates between the editor, CV table, and debug pages from the header", async () => {
     const fixture = TestBed.createComponent(App);
     await showEditor(fixture);
@@ -588,6 +640,8 @@ describe("App", () => {
     const debugButton = element.querySelector<HTMLButtonElement>(
       ".debug-toggle-button",
     );
+    expect(editorButton?.nextElementSibling).toBe(tableButton);
+    expect(tableButton?.nextElementSibling).toBe(debugButton);
     expect(editorButton?.getAttribute("aria-label")).toBe("Single CV editor");
     expect(editorButton?.getAttribute("aria-current")).toBe("page");
     expect(tableButton?.getAttribute("aria-label")).toBe("Read CV table");

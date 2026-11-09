@@ -1,18 +1,20 @@
 import {
   DccConnectionInfo,
   DccTransport,
+  DccTransportError,
   SerialLogMessage,
   SerialPortInfo,
   UnavailableDccTransport,
 } from 'common';
 import { BrowserSerial, WebSerialDccTransport } from './web-serial-dcc.transport';
+import { DccExCvReader } from './dcc-ex-cv-reader';
 
 export interface CabscribeDesktopBridge {
   requestLocomotiveAddress(): Promise<void>;
   listPorts(): Promise<SerialPortInfo[]>;
   connect(portId: string): Promise<DccConnectionInfo>;
   disconnect(): Promise<void>;
-  readCv(address: number, cv: number): Promise<number>;
+  readCv(cv: number): Promise<void>;
   writeCv(address: number, cv: number, value: number): Promise<void>;
   sendRawCommand?(command: string): Promise<void>;
   onDisconnected(listener: (message: string) => void): () => void;
@@ -26,6 +28,11 @@ declare global {
 }
 
 export class ElectronDccTransport implements DccTransport {
+  private readonly cvReader = new DccExCvReader(
+    (cv) => this.bridge.readCv(cv),
+    (listener) => this.bridge.onSerialMessage(listener),
+    (listener) => this.bridge.onDisconnected(listener)
+  );
   constructor(private readonly bridge: CabscribeDesktopBridge) {}
 
   requestLocomotiveAddress(): Promise<void> {
@@ -36,16 +43,22 @@ export class ElectronDccTransport implements DccTransport {
     return this.bridge.listPorts();
   }
 
-  connect(portId: string): Promise<DccConnectionInfo> {
-    return this.bridge.connect(portId);
+  async connect(portId: string): Promise<DccConnectionInfo> {
+    const connection = await this.bridge.connect(portId);
+    this.cvReader.reset();
+    return connection;
   }
 
   disconnect(): Promise<void> {
+    this.cvReader.disconnect();
     return this.bridge.disconnect();
   }
 
   readCv(address: number, cv: number): Promise<number> {
-    return this.bridge.readCv(address, cv);
+    if (!Number.isSafeInteger(address) || address < 1) {
+      return Promise.reject(new DccTransportError('rejected', 'Enter a positive whole-number target address.'));
+    }
+    return this.cvReader.read(cv);
   }
 
   writeCv(address: number, cv: number, value: number): Promise<void> {

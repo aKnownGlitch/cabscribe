@@ -68,6 +68,7 @@ export class CvScanService {
   readonly rows = signal<CvScanRow[]>([]);
   readonly scanning = signal(false);
   readonly cancelling = signal(false);
+  readonly reconnectRequired = signal(false);
   readonly progress = signal({ completed: 0, total: 0 });
   readonly currentCv = signal<number | null>(null);
   readonly outcome = signal<CvScanOutcome>({ kind: 'none' });
@@ -90,6 +91,7 @@ export class CvScanService {
         if (status !== 'connected') {
           this.cancel();
         } else if (this.lastConnectionStatus !== 'connected') {
+          this.reconnectRequired.set(false);
           this.clear();
         }
         this.lastConnectionStatus = status;
@@ -128,7 +130,7 @@ export class CvScanService {
     range: CvScanRange,
     rules: CvApplicabilityRules = new Map()
   ): Promise<void> {
-    if (this.scanning() || this.session.operationInProgress()) {
+    if (this.scanning() || this.reconnectRequired() || this.session.operationInProgress()) {
       return;
     }
     const rangeError = validateCvScanRange(range.first, range.last);
@@ -239,6 +241,11 @@ export class CvScanService {
         }
         this.progress.set({ completed, total: plan.length - skipped });
 
+        if (operation.kind === 'read-failure' && (operation.code === 'timeout' || operation.code === 'disconnected')) {
+          this.reconnectRequired.set(true);
+          end = { kind: 'stopped', message: operation.message };
+          break;
+        }
         if (consecutiveFailures >= MAX_CONSECUTIVE_SCAN_FAILURES) {
           end = {
             kind: 'stopped',

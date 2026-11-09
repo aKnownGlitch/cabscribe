@@ -66,10 +66,20 @@ export class CvTablePage {
     return (
       connection.status === 'connected' &&
       connection.capabilities.serviceModeRead &&
+      !this.scan.reconnectRequired() &&
       !this.session.operationInProgress() &&
       parseInteger(this.session.targetAddress(), 1) !== null &&
       this.rangeError() === null
     );
+  });
+  readonly readUnavailableReason = computed(() => {
+    const connection = this.session.connection();
+    if (connection.status !== 'connected') return 'Connect to a command station to read CVs.';
+    if (!connection.capabilities.serviceModeRead) return 'CV reading is not available on this connection.';
+    if (this.scan.reconnectRequired()) return 'Reconnect before reading another CV.';
+    if (this.session.operationInProgress() && !this.scan.scanning()) return 'Wait for the current operation to finish.';
+    if (parseInteger(this.session.targetAddress(), 1) === null) return 'Enter a target address to read CVs.';
+    return '';
   });
   readonly canToggleScan = computed(() =>
     this.scan.scanning() ? !this.scan.cancelling() : this.canStart()

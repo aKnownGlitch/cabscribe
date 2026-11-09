@@ -6,8 +6,8 @@ contextBridge.exposeInMainWorld('cabscribeDesktop', {
   listPorts: () => ipcRenderer.invoke('cabscribe:serial:list'),
   connect: (portId) => ipcRenderer.invoke('cabscribe:serial:connect', portId),
   disconnect: () => ipcRenderer.invoke('cabscribe:serial:disconnect'),
-  readCv: (address, cv) =>
-    ipcRenderer.invoke('cabscribe:dcc:read-cv', address, cv),
+  readCv: (cv) =>
+    ipcRenderer.invoke('cabscribe:dcc:read-cv', cv),
   writeCv: (address, cv, value) =>
     ipcRenderer.invoke('cabscribe:dcc:write-cv', address, cv, value),
   onDisconnected: (listener) => {

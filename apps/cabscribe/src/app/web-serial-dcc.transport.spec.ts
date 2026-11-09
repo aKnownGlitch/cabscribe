@@ -4,6 +4,57 @@ import {
   WebSerialDccTransport,
 } from './web-serial-dcc.transport';
 import { createDccTransport, ElectronDccTransport } from './electron-dcc.transport';
+import { DccExCvReader } from './dcc-ex-cv-reader';
+
+describe('DccExCvReader', () => {
+  it('matches fragmented CV responses and rejects failed reads', async () => {
+    let receive!: (message: SerialLogMessage) => void;
+    const send = vi.fn().mockResolvedValue(undefined);
+    const reader = new DccExCvReader(send, (listener) => {
+      receive = listener;
+      return vi.fn();
+    }, () => vi.fn());
+    const result = reader.read(29);
+    await Promise.resolve();
+    expect(send).toHaveBeenCalledWith(29);
+    receive({ direction: 'incoming', message: '<v 2 9><v 29 ' });
+    receive({ direction: 'incoming', message: '42>' });
+    await expect(result).resolves.toBe(42);
+    const failure = reader.read(1);
+    receive({ direction: 'incoming', message: '<v 1 -1>' });
+    await expect(failure).rejects.toMatchObject({ code: 'rejected' });
+  });
+
+  it('requires reconnect after a timeout to avoid stale replies', async () => {
+    vi.useFakeTimers();
+    try {
+      const reader = new DccExCvReader(vi.fn().mockResolvedValue(undefined), () => vi.fn(), () => vi.fn());
+      const result = reader.read(1);
+      const failure = expect(result).rejects.toMatchObject({ code: 'timeout' });
+      await vi.advanceTimersByTimeAsync(15000);
+      await failure;
+      await expect(reader.read(1)).rejects.toThrow('Reconnect');
+      reader.reset();
+      const next = reader.read(1);
+      const nextFailure = expect(next).rejects.toMatchObject({ code: 'timeout' });
+      await vi.advanceTimersByTimeAsync(15000);
+      await nextFailure;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('requires reconnect when transmission fails and cancels an active read on disconnect', async () => {
+    const reader = new DccExCvReader(vi.fn().mockRejectedValueOnce(new Error('Write failed')).mockResolvedValue(undefined), () => vi.fn(), () => vi.fn());
+    await expect(reader.read(1)).rejects.toMatchObject({ code: 'disconnected', message: expect.stringContaining('Reconnect') });
+    await expect(reader.read(1)).rejects.toThrow('Reconnect');
+    reader.reset();
+    const result = reader.read(2);
+    const failure = expect(result).rejects.toMatchObject({ code: 'disconnected' });
+    reader.disconnect();
+    await failure;
+  });
+});
 
 describe('WebSerialDccTransport', () => {
   function createTransport() {
@@ -39,7 +90,7 @@ describe('WebSerialDccTransport', () => {
     await transport.requestLocomotiveAddress();
     expect(write).toHaveBeenCalledOnce();
     expect(write.mock.calls[0][0]).toEqual(new TextEncoder().encode('<R LOCOID>'));
-    expect(messages).toEqual([{ direction: 'outgoing', message: '<R LOCOID>' }]);
+    expect(messages).toEqual([{ direction: 'outgoing', message: '<R LOCOID>', timestamp: expect.any(Date) }]);
     expect(port.writable?.locked).toBe(false);
     await transport.disconnect();
   });
@@ -75,11 +126,11 @@ describe('WebSerialDccTransport', () => {
     const connection = await transport.connect(info.id);
     expect(port.open).toHaveBeenCalledWith({ baudRate: 115200 });
     expect(connection.capabilities).toEqual({
-      serviceModeRead: false, serviceModeWrite: false,
+      serviceModeRead: true, serviceModeWrite: false,
     });
     controller.enqueue(new TextEncoder().encode('<iDCC-EX>'));
     await vi.waitFor(() => expect(messages).toEqual([
-      { direction: 'incoming', message: '<iDCC-EX>' },
+      { direction: 'incoming', message: '<iDCC-EX>', timestamp: expect.any(Date) },
     ]));
     await transport.disconnect();
     expect(port.readable?.locked).toBe(false);
@@ -127,10 +178,17 @@ describe('WebSerialDccTransport', () => {
     });
   });
 
-  it('does not report unsupported CV operations as successful', async () => {
-    const { transport } = createTransport();
-    await expect(transport.readCv()).rejects.toMatchObject({ code: 'unsupported' });
+  it('reads a CV over the programming track and leaves writes unsupported', async () => {
+    const { transport, controller, write } = createTransport();
+    await expect(transport.readCv(3, 1)).rejects.toMatchObject({ code: 'not-connected' });
+    const [info] = await transport.listPorts();
+    await transport.connect(info.id);
+    const result = transport.readCv(3, 1);
+    await vi.waitFor(() => expect(write).toHaveBeenCalledWith(new TextEncoder().encode('<R 1>'), expect.anything()));
+    controller.enqueue(new TextEncoder().encode('<v 1 3>'));
+    await expect(result).resolves.toBe(3);
     await expect(transport.writeCv()).rejects.toMatchObject({ code: 'unsupported' });
+    await transport.disconnect();
   });
 
   it('selects Web Serial only in a secure supported browser and prefers Electron', () => {
@@ -161,5 +219,20 @@ describe('WebSerialDccTransport', () => {
     expect(bridge.requestLocomotiveAddress).toHaveBeenCalledOnce();
     expect(bridge.readCv).not.toHaveBeenCalled();
     expect(bridge.writeCv).not.toHaveBeenCalled();
+  });
+
+  it('reads a CV through the Electron bridge and matches its serial response', async () => {
+    let receive!: (message: SerialLogMessage) => void;
+    const bridge = {
+      requestLocomotiveAddress: vi.fn(), listPorts: vi.fn(), connect: vi.fn(), disconnect: vi.fn(),
+      readCv: vi.fn().mockResolvedValue(undefined), writeCv: vi.fn(), onDisconnected: () => vi.fn(),
+      onSerialMessage: (listener: typeof receive) => { receive = listener; return vi.fn(); },
+    };
+    const transport = new ElectronDccTransport(bridge);
+    const result = transport.readCv(3, 7);
+    await Promise.resolve();
+    expect(bridge.readCv).toHaveBeenCalledWith(7);
+    receive({ direction: 'incoming', message: '<v 7 11>' });
+    await expect(result).resolves.toBe(11);
   });
 });

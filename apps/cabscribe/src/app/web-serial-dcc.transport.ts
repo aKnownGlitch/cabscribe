@@ -5,6 +5,7 @@ import {
   SerialLogMessage,
   SerialPortInfo,
 } from 'common';
+import { DccExCvReader } from './dcc-ex-cv-reader';
 
 // Web Serial is not included in TypeScript's standard DOM declarations.
 export interface BrowserSerialPort {
@@ -29,6 +30,11 @@ export class WebSerialDccTransport implements DccTransport {
   private closing = false;
   private readonly disconnectListeners = new Set<(message: string) => void>();
   private readonly serialListeners = new Set<(message: SerialLogMessage) => void>();
+  private readonly cvReader = new DccExCvReader(
+    (cv) => this.sendRawCommand(`<R ${cv}>`),
+    (listener) => this.onSerialMessage(listener),
+    (listener) => this.onDisconnected(listener)
+  );
 
   constructor(private readonly serial: BrowserSerial) {}
 
@@ -69,11 +75,12 @@ export class WebSerialDccTransport implements DccTransport {
     this.activePort = port;
     this.closing = false;
     this.cleanupFailure = undefined;
+    this.cvReader.reset();
     this.readTask = this.readSerial(port);
     return {
-      capabilities: { serviceModeRead: false, serviceModeWrite: false },
+      capabilities: { serviceModeRead: true, serviceModeWrite: false },
       message:
-        'The serial port is open at 115200 baud. Locomotive address confirmation is available; CV reading and writing are not enabled yet.',
+        'The serial port is open at 115200 baud. CV writing is not enabled yet.',
     };
   }
 
@@ -82,6 +89,7 @@ export class WebSerialDccTransport implements DccTransport {
       return;
     }
     this.closing = true;
+    this.cvReader.disconnect();
     try {
       await this.reader?.cancel();
       await this.readTask;
@@ -111,11 +119,14 @@ export class WebSerialDccTransport implements DccTransport {
     }
   }
 
-  async readCv(): Promise<number> {
-    throw new DccTransportError(
-      'unsupported',
-      'DCC-EX Service Mode CV reading is not implemented; no command was sent.'
-    );
+  async readCv(address: number, cv: number): Promise<number> {
+    if (!Number.isSafeInteger(address) || address < 1) {
+      throw new DccTransportError('rejected', 'Enter a positive whole-number target address.');
+    }
+    if (!this.activePort || this.closing) {
+      throw new DccTransportError('not-connected', 'Connect to a command station before reading a CV.');
+    }
+    return this.cvReader.read(cv);
   }
 
   async writeCv(): Promise<void> {

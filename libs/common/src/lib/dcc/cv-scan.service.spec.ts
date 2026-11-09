@@ -106,7 +106,7 @@ describe('CvScanService', () => {
   it('stops after 3 consecutive failures and keeps earlier values', async () => {
     const { scan, transport } = await setup(async (_address, cv) => {
       if (cv >= 3) {
-        throw new DccTransportError('timeout', 'No response');
+        throw new DccTransportError('rejected', 'No response');
       }
       return cv;
     });
@@ -120,10 +120,27 @@ describe('CvScanService', () => {
     expect(scan.outcome()).toMatchObject({ kind: 'stopped' });
   });
 
+  it('stops immediately on a timeout and preserves earlier values', async () => {
+    const { scan, transport, session } = await setup(async (_address, cv) => {
+      if (cv === 2) throw new DccTransportError('timeout', 'Reconnect before retrying.');
+      return cv;
+    });
+    await scan.scan(3, { first: 1, last: 4 });
+    expect(vi.mocked(transport.readCv)).toHaveBeenCalledTimes(2);
+    expect(scan.rows().map((row) => row.status)).toEqual(['value', 'failed', 'not-read', 'not-read']);
+    expect(scan.outcome()).toMatchObject({ kind: 'stopped', message: 'Reconnect before retrying.' });
+    expect(scan.reconnectRequired()).toBe(true);
+    await session.disconnect();
+    TestBed.tick();
+    await session.connect(port.id);
+    TestBed.tick();
+    expect(scan.reconnectRequired()).toBe(false);
+  });
+
   it('resets the failure count after a successful read', async () => {
     const { scan } = await setup(async (_address, cv) => {
       if (cv % 3 !== 0) {
-        throw new DccTransportError('timeout', 'No response');
+        throw new DccTransportError('rejected', 'No response');
       }
       return cv;
     });
