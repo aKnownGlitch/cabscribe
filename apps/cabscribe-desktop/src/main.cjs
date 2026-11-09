@@ -1,16 +1,14 @@
-const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
-const path = require('node:path');
-const { pathToFileURL } = require('node:url');
-const { SerialPort } = require('serialport');
+const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
+const path = require("node:path");
+const { pathToFileURL } = require("node:url");
+const { SerialPort } = require("serialport");
 
 const DCC_EX_BAUD_RATE = 115200;
 let mainWindow;
 let activePort;
 
 function serialPortLabel(port) {
-  return port.manufacturer
-    ? `${port.manufacturer} · ${port.path}`
-    : port.path;
+  return port.manufacturer ? `${port.manufacturer} · ${port.path}` : port.path;
 }
 
 function notifyUnexpectedDisconnect(port, message) {
@@ -19,17 +17,17 @@ function notifyUnexpectedDisconnect(port, message) {
   }
 
   activePort = undefined;
-  mainWindow?.webContents.send('cabscribe:serial:disconnected', message);
+  mainWindow?.webContents.send("cabscribe:serial:disconnected", message);
 }
 
 function reportSerialMessage(direction, message) {
-  mainWindow?.webContents.send('cabscribe:serial:message', {
+  mainWindow?.webContents.send("cabscribe:serial:message", {
     direction,
     message,
   });
 }
 
-ipcMain.handle('cabscribe:serial:list', async () => {
+ipcMain.handle("cabscribe:serial:list", async () => {
   const ports = await SerialPort.list();
   return ports.map((port) => ({
     id: port.path,
@@ -37,20 +35,20 @@ ipcMain.handle('cabscribe:serial:list', async () => {
   }));
 });
 
-ipcMain.handle('cabscribe:serial:connect', async (_event, portId) => {
+ipcMain.handle("cabscribe:serial:connect", async (_event, portId) => {
   if (activePort?.isOpen) {
     throw new Error(
-      'A serial port is already open. Disconnect before switching ports.'
+      "A serial port is already open. Disconnect before switching ports.",
     );
   }
-  if (typeof portId !== 'string' || portId.length === 0) {
-    throw new Error('Select an available serial port before connecting.');
+  if (typeof portId !== "string" || portId.length === 0) {
+    throw new Error("Select an available serial port before connecting.");
   }
 
   const ports = await SerialPort.list();
   if (!ports.some((port) => port.path === portId)) {
     throw new Error(
-      'The selected serial port is no longer available. Refresh the list.'
+      "The selected serial port is no longer available. Refresh the list.",
     );
   }
 
@@ -71,27 +69,27 @@ ipcMain.handle('cabscribe:serial:connect', async (_event, portId) => {
   });
 
   activePort = port;
-  port.on('data', (data) => {
-    reportSerialMessage('incoming', data.toString('utf8'));
+  port.on("data", (data) => {
+    reportSerialMessage("incoming", data.toString("utf8"));
   });
-  port.on('error', (error) => {
+  port.on("error", (error) => {
     notifyUnexpectedDisconnect(
       port,
-      `Serial connection lost: ${error.message}`
+      `Serial connection lost: ${error.message}`,
     );
     if (port.isOpen) {
       port.close((closeError) => {
         if (closeError) {
           mainWindow?.webContents.send(
-            'cabscribe:serial:disconnected',
-            `Serial connection cleanup failed: ${closeError.message}`
+            "cabscribe:serial:disconnected",
+            `Serial connection cleanup failed: ${closeError.message}`,
           );
         }
       });
     }
   });
-  port.on('close', () => {
-    notifyUnexpectedDisconnect(port, 'The serial device disconnected.');
+  port.on("close", () => {
+    notifyUnexpectedDisconnect(port, "The serial device disconnected.");
   });
 
   return {
@@ -100,11 +98,11 @@ ipcMain.handle('cabscribe:serial:connect', async (_event, portId) => {
       serviceModeWrite: false,
     },
     message:
-      'The serial port is open at 115200 baud. CV writing is not enabled yet.',
+      "The serial port is open at 115200 baud. CV writing is not enabled yet.",
   };
 });
 
-ipcMain.handle('cabscribe:serial:disconnect', async () => {
+ipcMain.handle("cabscribe:serial:disconnect", async () => {
   const port = activePort;
   activePort = undefined;
   if (!port?.isOpen) {
@@ -122,13 +120,13 @@ ipcMain.handle('cabscribe:serial:disconnect', async () => {
   });
 });
 
-ipcMain.handle('cabscribe:dcc:read-cv', async (_event, cv) => {
+ipcMain.handle("cabscribe:dcc:read-cv", async (_event, cv) => {
   if (!Number.isSafeInteger(cv) || cv < 1 || cv > 1024) {
-    throw new Error('Enter a CV address from 1 to 1024.');
+    throw new Error("Enter a CV address from 1 to 1024.");
   }
   const port = activePort;
   if (!port?.isOpen) {
-    throw new Error('Connect to a command station before reading a CV.');
+    throw new Error("Connect to a command station before reading a CV.");
   }
   const command = `<R ${cv}>`;
   await new Promise((resolve, reject) => {
@@ -139,9 +137,11 @@ ipcMain.handle('cabscribe:dcc:read-cv', async (_event, cv) => {
       }
       port.drain((drainError) => {
         if (drainError) {
-          reject(new Error(`CV read transmission failed: ${drainError.message}`));
+          reject(
+            new Error(`CV read transmission failed: ${drainError.message}`),
+          );
         } else {
-          reportSerialMessage('outgoing', command);
+          reportSerialMessage("outgoing", command);
           resolve();
         }
       });
@@ -149,22 +149,28 @@ ipcMain.handle('cabscribe:dcc:read-cv', async (_event, cv) => {
   });
 });
 
-ipcMain.handle('cabscribe:dcc:read-address', async () => {
+ipcMain.handle("cabscribe:dcc:read-address", async () => {
   const port = activePort;
   if (!port?.isOpen) {
-    throw new Error('Connect to a command station before confirming an address.');
+    throw new Error(
+      "Connect to a command station before confirming an address.",
+    );
   }
   await new Promise((resolve, reject) => {
-    port.write('<R LOCOID>', (error) => {
+    port.write("<R LOCOID>", (error) => {
       if (error) {
         reject(new Error(`Address read could not be sent: ${error.message}`));
         return;
       }
       port.drain((drainError) => {
         if (drainError) {
-          reject(new Error(`Address read transmission failed: ${drainError.message}`));
+          reject(
+            new Error(
+              `Address read transmission failed: ${drainError.message}`,
+            ),
+          );
         } else {
-          reportSerialMessage('outgoing', '<R LOCOID>');
+          reportSerialMessage("outgoing", "<R LOCOID>");
           resolve();
         }
       });
@@ -172,44 +178,43 @@ ipcMain.handle('cabscribe:dcc:read-address', async () => {
   });
 });
 
-ipcMain.handle('cabscribe:dcc:write-cv', async (_event, address, cv, value) => {
+ipcMain.handle("cabscribe:dcc:write-cv", async (_event, address, cv, value) => {
   if (!Number.isSafeInteger(address) || address < 1) {
-    throw new Error('Enter a positive whole-number locomotive or accessory ID.');
+    throw new Error(
+      "Enter a positive whole-number locomotive or accessory ID.",
+    );
   }
   if (!Number.isSafeInteger(cv) || cv < 1) {
-    throw new Error('Enter a positive whole-number CV address.');
+    throw new Error("Enter a positive whole-number CV address.");
   }
   if (!Number.isSafeInteger(value) || value < 0) {
-    throw new Error('Enter a non-negative whole-number CV value.');
+    throw new Error("Enter a non-negative whole-number CV value.");
   }
   throw new Error(
-    'DCC-EX Service Mode CV writing is not implemented; no command was sent.'
+    "DCC-EX Service Mode CV writing is not implemented; no command was sent.",
   );
 });
 
 function createWindow() {
   const webAppPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'web', 'index.html')
+    ? path.join(process.resourcesPath, "web", "index.html")
     : path.resolve(
         __dirname,
-        '../../../dist/apps/cabscribe/browser/index.html'
+        "../../../dist/apps/cabscribe/browser/index.html",
       );
   const iconPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'web', 'cabscribe-icon.png')
-    : path.resolve(
-        __dirname,
-        '../../cabscribe/public/cabscribe-icon.png'
-      );
+    ? path.join(process.resourcesPath, "web", "cabscribe-icon.png")
+    : path.resolve(__dirname, "../../cabscribe/public/cabscribe-icon.png");
 
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 900,
     minWidth: 760,
     minHeight: 620,
-    backgroundColor: '#f5f7f8',
+    backgroundColor: "#f5f7f8",
     icon: iconPath,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
+      preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -219,19 +224,19 @@ function createWindow() {
   const allowedFileUrl = pathToFileURL(webAppPath).href;
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url === 'https://github.com/aKnownGlitch/cabscribe') {
+    if (url === "https://github.com/aKnownGlitch/cabscribe") {
       void shell.openExternal(url).catch((error) => {
-        dialog.showErrorBox('Could not open GitHub', error.message);
+        dialog.showErrorBox("Could not open GitHub", error.message);
       });
     }
-    return { action: 'deny' };
+    return { action: "deny" };
   });
-  mainWindow.webContents.on('will-navigate', (event, url) => {
+  mainWindow.webContents.on("will-navigate", (event, url) => {
     if (url !== allowedFileUrl) {
       event.preventDefault();
     }
   });
-  mainWindow.on('closed', () => {
+  mainWindow.on("closed", () => {
     mainWindow = undefined;
   });
 
@@ -240,21 +245,21 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
-  app.on('activate', () => {
+  app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
 });
 
-app.on('before-quit', () => {
+app.on("before-quit", () => {
   if (activePort?.isOpen) {
     activePort.close();
   }
 });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
     app.quit();
   }
 });

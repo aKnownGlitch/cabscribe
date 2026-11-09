@@ -5,9 +5,12 @@ import {
   SerialLogMessage,
   SerialPortInfo,
   UnavailableDccTransport,
-} from 'common';
-import { BrowserSerial, WebSerialDccTransport } from './web-serial-dcc.transport';
-import { DccExCvReader } from './dcc-ex-cv-reader';
+} from "common";
+import {
+  BrowserSerial,
+  WebSerialDccTransport,
+} from "./web-serial-dcc.transport";
+import { DccExCvReader } from "./dcc-ex-cv-reader";
 
 export interface CabscribeDesktopBridge {
   requestLocomotiveAddress(): Promise<void>;
@@ -31,7 +34,7 @@ export class ElectronDccTransport implements DccTransport {
   private readonly cvReader = new DccExCvReader(
     (cv) => this.bridge.readCv(cv),
     (listener) => this.bridge.onSerialMessage(listener),
-    (listener) => this.bridge.onDisconnected(listener)
+    (listener) => this.bridge.onDisconnected(listener),
   );
   constructor(private readonly bridge: CabscribeDesktopBridge) {}
 
@@ -56,7 +59,12 @@ export class ElectronDccTransport implements DccTransport {
 
   readCv(address: number, cv: number): Promise<number> {
     if (!Number.isSafeInteger(address) || address < 1) {
-      return Promise.reject(new DccTransportError('rejected', 'Enter a positive whole-number target address.'));
+      return Promise.reject(
+        new DccTransportError(
+          "rejected",
+          "Enter a positive whole-number target address.",
+        ),
+      );
     }
     return this.cvReader.read(cv);
   }
@@ -69,7 +77,7 @@ export class ElectronDccTransport implements DccTransport {
     if (this.bridge.sendRawCommand) {
       return this.bridge.sendRawCommand(command);
     }
-    return Promise.reject(new Error('sendRawCommand is not available'));
+    return Promise.reject(new Error("sendRawCommand is not available"));
   }
 
   onDisconnected(listener: (message: string) => void): () => void {
@@ -82,19 +90,19 @@ export class ElectronDccTransport implements DccTransport {
 }
 
 export function createDccTransport(): DccTransport {
-  if (typeof window !== 'undefined' && window.cabscribeDesktop) {
+  if (typeof window !== "undefined" && window.cabscribeDesktop) {
     return new ElectronDccTransport(window.cabscribeDesktop);
   }
 
   if (
-    typeof window !== 'undefined' &&
+    typeof window !== "undefined" &&
     window.isSecureContext &&
-    'serial' in navigator
+    "serial" in navigator
   ) {
     return new WebSerialDccTransport(navigator.serial as BrowserSerial);
   }
 
   return new UnavailableDccTransport(
-    'Browser serial access requires a Web Serial-capable Chromium browser on HTTPS or localhost. Check browser permissions and the serial Permissions Policy.'
+    "Browser serial access requires a Web Serial-capable Chromium browser on HTTPS or localhost. Check browser permissions and the serial Permissions Policy.",
   );
 }

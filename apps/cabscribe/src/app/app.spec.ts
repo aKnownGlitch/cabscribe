@@ -584,8 +584,14 @@ describe("App", () => {
         capabilities: { serviceModeRead: true, serviceModeWrite: false },
       }),
       disconnect: vi.fn().mockResolvedValue(undefined),
-      readCv: vi.fn()
-        .mockImplementationOnce(() => new Promise<number>((resolve) => { finishFirst = resolve; }))
+      readCv: vi
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise<number>((resolve) => {
+              finishFirst = resolve;
+            }),
+        )
         .mockResolvedValueOnce(42),
       writeCv: vi.fn(),
     };
@@ -597,14 +603,19 @@ describe("App", () => {
     fixture.detectChanges();
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
-    const page = fixture.debugElement.query(By.directive(CvTablePage)).componentInstance as CvTablePage;
+    const page = fixture.debugElement.query(By.directive(CvTablePage))
+      .componentInstance as CvTablePage;
     const button = element.querySelector<HTMLButtonElement>(".scan-button")!;
     expect(button.disabled).toBe(true);
-    expect(element.textContent).toContain("Connect to a command station to read CVs.");
+    expect(element.textContent).toContain(
+      "Connect to a command station to read CVs.",
+    );
     await app.session.connect("test");
     fixture.detectChanges();
     expect(button.disabled).toBe(true);
-    expect(element.textContent).toContain("Enter a target address to read CVs.");
+    expect(element.textContent).toContain(
+      "Enter a target address to read CVs.",
+    );
     app.updateTargetAddress(3);
     page.lastCv.set("2");
     fixture.detectChanges();
@@ -613,18 +624,28 @@ describe("App", () => {
     fixture.detectChanges();
     expect(transport.readCv).toHaveBeenCalledWith(3, 1);
     expect(button.textContent).toContain("Cancel");
-    expect(element.querySelector<HTMLInputElement>(".first-cv-input")?.disabled).toBe(true);
+    expect(
+      element.querySelector<HTMLInputElement>(".first-cv-input")?.disabled,
+    ).toBe(true);
     finishFirst(3);
     await vi.waitFor(() => expect(page.scan.scanning()).toBe(false));
     fixture.detectChanges();
-    expect(transport.readCv.mock.calls).toEqual([[3, 1], [3, 2]]);
-    expect(page.scan.rows().map((row) => [row.cv, row.value])).toEqual([[1, 3], [2, 42]]);
+    expect(transport.readCv.mock.calls).toEqual([
+      [3, 1],
+      [3, 2],
+    ]);
+    expect(page.scan.rows().map((row) => [row.cv, row.value])).toEqual([
+      [1, 3],
+      [2, 42],
+    ]);
     expect(element.querySelectorAll('tr[data-status="value"]')).toHaveLength(2);
     expect(button.textContent).toContain("Read");
     page.firstCv.set("3");
     fixture.detectChanges();
     expect(button.disabled).toBe(true);
-    expect(element.textContent).toContain("The first CV must not be greater than the last CV.");
+    expect(element.textContent).toContain(
+      "The first CV must not be greater than the last CV.",
+    );
   });
 
   it("navigates between the editor, CV table, and debug pages from the header", async () => {

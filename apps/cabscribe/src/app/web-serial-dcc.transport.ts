@@ -4,8 +4,8 @@ import {
   DccTransportError,
   SerialLogMessage,
   SerialPortInfo,
-} from 'common';
-import { DccExCvReader } from './dcc-ex-cv-reader';
+} from "common";
+import { DccExCvReader } from "./dcc-ex-cv-reader";
 
 // Web Serial is not included in TypeScript's standard DOM declarations.
 export interface BrowserSerialPort {
@@ -29,11 +29,13 @@ export class WebSerialDccTransport implements DccTransport {
   private cleanupFailure?: string;
   private closing = false;
   private readonly disconnectListeners = new Set<(message: string) => void>();
-  private readonly serialListeners = new Set<(message: SerialLogMessage) => void>();
+  private readonly serialListeners = new Set<
+    (message: SerialLogMessage) => void
+  >();
   private readonly cvReader = new DccExCvReader(
     (cv) => this.sendRawCommand(`<R ${cv}>`),
     (listener) => this.onSerialMessage(listener),
-    (listener) => this.onDisconnected(listener)
+    (listener) => this.onDisconnected(listener),
   );
 
   constructor(private readonly serial: BrowserSerial) {}
@@ -52,7 +54,7 @@ export class WebSerialDccTransport implements DccTransport {
       // Keep this call before any await: the chooser requires a user gesture.
       return this.describePort(await this.serial.requestPort());
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'NotFoundError') {
+      if (error instanceof DOMException && error.name === "NotFoundError") {
         return null;
       }
       throw this.connectionError(error);
@@ -61,11 +63,17 @@ export class WebSerialDccTransport implements DccTransport {
 
   async connect(portId: string): Promise<DccConnectionInfo> {
     if (this.activePort) {
-      throw new DccTransportError('rejected', 'Disconnect before opening another serial port.');
+      throw new DccTransportError(
+        "rejected",
+        "Disconnect before opening another serial port.",
+      );
     }
     const port = this.ports.get(portId);
     if (!port) {
-      throw new DccTransportError('not-connected', 'Choose an authorized serial port first.');
+      throw new DccTransportError(
+        "not-connected",
+        "Choose an authorized serial port first.",
+      );
     }
     try {
       await port.open({ baudRate: 115200 });
@@ -80,7 +88,7 @@ export class WebSerialDccTransport implements DccTransport {
     return {
       capabilities: { serviceModeRead: true, serviceModeWrite: false },
       message:
-        'The serial port is open at 115200 baud. CV writing is not enabled yet.',
+        "The serial port is open at 115200 baud. CV writing is not enabled yet.",
     };
   }
 
@@ -94,7 +102,7 @@ export class WebSerialDccTransport implements DccTransport {
       await this.reader?.cancel();
       await this.readTask;
       if (this.cleanupFailure) {
-        throw new DccTransportError('disconnected', this.cleanupFailure);
+        throw new DccTransportError("disconnected", this.cleanupFailure);
       }
     } catch (error) {
       throw this.connectionError(error);
@@ -104,13 +112,20 @@ export class WebSerialDccTransport implements DccTransport {
   async requestLocomotiveAddress(): Promise<void> {
     const port = this.activePort;
     if (!port?.writable || this.closing) {
-      throw new DccTransportError('not-connected', 'The serial port is not writable.');
+      throw new DccTransportError(
+        "not-connected",
+        "The serial port is not writable.",
+      );
     }
     const writer = port.writable.getWriter();
     try {
-      await writer.write(new TextEncoder().encode('<R LOCOID>'));
+      await writer.write(new TextEncoder().encode("<R LOCOID>"));
       for (const listener of this.serialListeners) {
-        listener({ direction: 'outgoing', message: '<R LOCOID>', timestamp: new Date() });
+        listener({
+          direction: "outgoing",
+          message: "<R LOCOID>",
+          timestamp: new Date(),
+        });
       }
     } catch (error) {
       throw this.connectionError(error);
@@ -121,31 +136,44 @@ export class WebSerialDccTransport implements DccTransport {
 
   async readCv(address: number, cv: number): Promise<number> {
     if (!Number.isSafeInteger(address) || address < 1) {
-      throw new DccTransportError('rejected', 'Enter a positive whole-number target address.');
+      throw new DccTransportError(
+        "rejected",
+        "Enter a positive whole-number target address.",
+      );
     }
     if (!this.activePort || this.closing) {
-      throw new DccTransportError('not-connected', 'Connect to a command station before reading a CV.');
+      throw new DccTransportError(
+        "not-connected",
+        "Connect to a command station before reading a CV.",
+      );
     }
     return this.cvReader.read(cv);
   }
 
   async writeCv(): Promise<void> {
     throw new DccTransportError(
-      'unsupported',
-      'DCC-EX Service Mode CV writing is not implemented; no command was sent.'
+      "unsupported",
+      "DCC-EX Service Mode CV writing is not implemented; no command was sent.",
     );
   }
 
   async sendRawCommand(command: string): Promise<void> {
     const port = this.activePort;
     if (!port?.writable || this.closing) {
-      throw new DccTransportError('not-connected', 'The serial port is not writable.');
+      throw new DccTransportError(
+        "not-connected",
+        "The serial port is not writable.",
+      );
     }
     const writer = port.writable.getWriter();
     try {
       await writer.write(new TextEncoder().encode(command));
       for (const listener of this.serialListeners) {
-        listener({ direction: 'outgoing', message: command, timestamp: new Date() });
+        listener({
+          direction: "outgoing",
+          message: command,
+          timestamp: new Date(),
+        });
       }
     } catch (error) {
       throw this.connectionError(error);
@@ -172,18 +200,19 @@ export class WebSerialDccTransport implements DccTransport {
       this.ports.set(id, port);
     }
     const info = port.getInfo();
-    const usb = info.usbVendorId === undefined
-      ? ''
-      : ` (USB ${info.usbVendorId.toString(16)}:${(info.usbProductId ?? 0).toString(16)})`;
+    const usb =
+      info.usbVendorId === undefined
+        ? ""
+        : ` (USB ${info.usbVendorId.toString(16)}:${(info.usbProductId ?? 0).toString(16)})`;
     const index = [...this.ports.keys()].indexOf(id) + 1;
     return { id, label: `Serial port ${index}${usb}` };
   }
 
   private async readSerial(port: BrowserSerialPort): Promise<void> {
-    let failure = 'The serial device disconnected.';
+    let failure = "The serial device disconnected.";
     try {
       if (!port.readable) {
-        throw new Error('The serial port has no readable stream.');
+        throw new Error("The serial port has no readable stream.");
       }
       const reader = port.readable.getReader();
       this.reader = reader;
@@ -191,10 +220,16 @@ export class WebSerialDccTransport implements DccTransport {
       try {
         while (true) {
           const { value, done } = await reader.read();
-          const message = done ? decoder.decode() : decoder.decode(value, { stream: true });
+          const message = done
+            ? decoder.decode()
+            : decoder.decode(value, { stream: true });
           if (message) {
             for (const listener of this.serialListeners) {
-              listener({ direction: 'incoming', message, timestamp: new Date() });
+              listener({
+                direction: "incoming",
+                message,
+                timestamp: new Date(),
+              });
             }
           }
           if (done) {
@@ -225,12 +260,12 @@ export class WebSerialDccTransport implements DccTransport {
 
   private connectionError(error: unknown): DccTransportError {
     return new DccTransportError(
-      error instanceof DOMException && error.name === 'SecurityError'
-        ? 'permission-denied'
-        : 'rejected',
+      error instanceof DOMException && error.name === "SecurityError"
+        ? "permission-denied"
+        : "rejected",
       error instanceof Error || error instanceof DOMException
         ? error.message
-        : 'The browser serial connection failed.'
+        : "The browser serial connection failed.",
     );
   }
 }

@@ -57,17 +57,19 @@
     </mat-form-field>
   </div>
 
-  <p class="scan-hint">Service Mode reads the decoder on the programming track; the target address does not select the decoder.</p>
+  <p class="scan-hint">
+    Service Mode reads the decoder on the programming track; the target address
+    does not select the decoder.
+  </p>
   @if (readUnavailableReason(); as reason) {
-    <p class="scan-hint" role="status">{{ reason }}</p>
-  }
-  @if (rangeError(); as error) {
-    <p class="scan-hint error" role="alert">{{ error }}</p>
+  <p class="scan-hint" role="status">{{ reason }}</p>
+  } @if (rangeError(); as error) {
+  <p class="scan-hint error" role="alert">{{ error }}</p>
   } @else {
-    <p class="scan-hint">
-      {{ cvCount() }} {{ cvCount() === 1 ? 'CV' : 'CVs' }} will be read, one at
-      a time. Large ranges can take a long time.
-    </p>
+  <p class="scan-hint">
+    {{ cvCount() }} {{ cvCount() === 1 ? 'CV' : 'CVs' }} will be read, one at a
+    time. Large ranges can take a long time.
+  </p>
   }
 
   <div class="operation-actions">
@@ -88,21 +90,20 @@
       [disabled]="!canToggleScan()"
     >
       @if (scan.scanning()) {
-        <mat-progress-spinner
-          class="scan-progress"
-          diameter="20"
-          mode="determinate"
-          [value]="scan.percent()"
-          aria-label="Scan progress"
-        ></mat-progress-spinner>
-        {{ scan.cancelling() ? 'Cancelling…' : 'Cancel' }}
-      } @else {
-        Read
-      }
+      <mat-progress-spinner
+        class="scan-progress"
+        diameter="20"
+        mode="determinate"
+        [value]="scan.percent()"
+        aria-label="Scan progress"
+      ></mat-progress-spinner>
+      {{ scan.cancelling() ? 'Cancelling…' : 'Cancel' }} } @else { Read }
     </button>
   </div>
 
-  <p class="scan-status" role="status" aria-live="polite">{{ statusMessage() }}</p>
+  <p class="scan-status" role="status" aria-live="polite">
+    {{ statusMessage() }}
+  </p>
 
   <div
     class="cv-table-wrapper"
@@ -124,24 +125,24 @@
       </thead>
       <tbody>
         @for (row of displayRows(); track row.cv) {
-          <tr [attr.data-status]="row.status">
-            <td class="cv-number">{{ row.cv }}</td>
-            <td class="cv-value">{{ row.display }}</td>
-            <td>
-              <span class="cv-status">{{ statusLabels[row.status] }}</span>
-              @if (row.message && row.status !== 'value') {
-                <span class="cv-status-message">{{ row.message }}</span>
-              }
-            </td>
-            <td>{{ row.description }}</td>
-          </tr>
+        <tr [attr.data-status]="row.status">
+          <td class="cv-number">{{ row.cv }}</td>
+          <td class="cv-value">{{ row.display }}</td>
+          <td>
+            <span class="cv-status">{{ statusLabels[row.status] }}</span>
+            @if (row.message && row.status !== 'value') {
+            <span class="cv-status-message">{{ row.message }}</span>
+            }
+          </td>
+          <td>{{ row.description }}</td>
+        </tr>
         } @empty {
-          <tr>
-            <td colspan="4" class="cv-empty">
-              Select Read to scan CVs from the target. Values and descriptions
-              appear here.
-            </td>
-          </tr>
+        <tr>
+          <td colspan="4" class="cv-empty">
+            Select Read to scan CVs from the target. Values and descriptions
+            appear here.
+          </td>
+        </tr>
         }
       </tbody>
     </table>
