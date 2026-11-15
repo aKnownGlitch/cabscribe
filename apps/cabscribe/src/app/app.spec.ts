@@ -479,6 +479,65 @@ describe("App", () => {
     expect(transport.readCv).toHaveBeenLastCalledWith(3, 29);
   });
 
+  it("shows CV 8 manufacturer hints after reading and editing without changing the write value", async () => {
+    const transport = {
+      listPorts: vi.fn().mockResolvedValue([{ id: "test", label: "DCC-EX" }]),
+      connect: vi.fn().mockResolvedValue({
+        capabilities: { serviceModeRead: true, serviceModeWrite: true },
+      }),
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      readCv: vi.fn().mockResolvedValue(101),
+      writeCv: vi.fn().mockResolvedValue(undefined),
+    };
+    TestBed.overrideProvider(DCC_TRANSPORT, { useValue: transport });
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    fixture.componentInstance.selectPort("test");
+    await fixture.componentInstance.connect();
+    const editor = await showEditor(fixture);
+    fixture.componentInstance.targetAddress.set("3");
+    editor.cvAddress.set("8");
+    await editor.read();
+    await fixture.whenStable();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const hint = () => element.querySelector(".cv-fields mat-hint");
+    const input = element.querySelector<HTMLInputElement>(
+      'input[placeholder="Read or enter a value"]',
+    );
+    if (!input) {
+      throw new Error("CV value input was not rendered.");
+    }
+    expect(hint()?.textContent?.trim()).toBe("101 = Bachmann Trains");
+    expect(input.value).toBe("101");
+    expect(input.disabled).toBe(false);
+    expect(input.readOnly).toBe(false);
+
+    input.value = "129";
+    input.dispatchEvent(new Event("input"));
+    await fixture.whenStable();
+    expect(hint()?.textContent?.trim()).toBe("129 = Digitrax");
+    editor.requestWrite();
+    expect(editor.pendingWrite()).toEqual({ address: 3, cv: 8, value: 129 });
+    editor.cancelWrite();
+
+    input.value = "255";
+    input.dispatchEvent(new Event("input"));
+    await fixture.whenStable();
+    expect(hint()?.textContent?.trim()).toBe("255 = Unknown manufacturer");
+    expect(editor.canWrite()).toBe(true);
+
+    input.value = "";
+    input.dispatchEvent(new Event("input"));
+    await fixture.whenStable();
+    expect(hint()).toBeNull();
+
+    editor.cvValue.set("101");
+    editor.cvAddress.set("7");
+    await fixture.whenStable();
+    expect(hint()).toBeNull();
+  });
+
   it("formats and clears incoming and outgoing serial data on the debug page", async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();

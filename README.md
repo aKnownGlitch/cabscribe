@@ -30,6 +30,12 @@ such as desktop Chrome or Edge.
 
 ## Technology and platform
 
+The single-CV editor shows a manufacturer hint for CV 8 using the decimal
+codes in [the manufacturer table](apps/cabscribe/src/app/manufacturer-codes.json), extracted from
+[NMRA Appendix A](docs/appendix_a_s-9_2_2.pdf). The hint follows the displayed
+value without replacing or restricting the numeric input used for writes.
+Unlisted codes are shown as "Unknown manufacturer".
+
 - Angular desktop UI hosted by Electron.
 - Chromium browser support through Web Serial on HTTPS or localhost, with an
   explicit device-permission chooser. Unsupported browsers cannot access serial

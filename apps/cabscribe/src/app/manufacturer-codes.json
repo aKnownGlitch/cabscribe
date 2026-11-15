@@ -1,0 +1,650 @@
+[
+  {
+    "code": 1,
+    "manufacturer": "CML Electronics Limited"
+  },
+  {
+    "code": 2,
+    "manufacturer": "Train Technology"
+  },
+  {
+    "code": 11,
+    "manufacturer": "NCE Corporation (formerly North Coast Engineering)"
+  },
+  {
+    "code": 12,
+    "manufacturer": "Wangrow Electronics"
+  },
+  {
+    "code": 13,
+    "manufacturer": "Public Domain & Do-It-Yourself Decoders"
+  },
+  {
+    "code": 14,
+    "manufacturer": "PSI –Dynatrol"
+  },
+  {
+    "code": 15,
+    "manufacturer": "Ramfixx Technologies (Wangrow)"
+  },
+  {
+    "code": 17,
+    "manufacturer": "Advance IC Engineering"
+  },
+  {
+    "code": 18,
+    "manufacturer": "JMRI"
+  },
+  {
+    "code": 19,
+    "manufacturer": "AMW"
+  },
+  {
+    "code": 20,
+    "manufacturer": "T4T – Technology for Trains GmbH"
+  },
+  {
+    "code": 21,
+    "manufacturer": "Kreischer Datentechnik"
+  },
+  {
+    "code": 22,
+    "manufacturer": "KAM Industries"
+  },
+  {
+    "code": 23,
+    "manufacturer": "S Helper Service"
+  },
+  {
+    "code": 24,
+    "manufacturer": "MoBaTron.de"
+  },
+  {
+    "code": 25,
+    "manufacturer": "Team Digital, LLC"
+  },
+  {
+    "code": 26,
+    "manufacturer": "MBTronik – PiN GITmBH"
+  },
+  {
+    "code": 27,
+    "manufacturer": "MTH Electric Trains, Inc."
+  },
+  {
+    "code": 28,
+    "manufacturer": "Heljan A/S"
+  },
+  {
+    "code": 29,
+    "manufacturer": "Mistral Train Models"
+  },
+  {
+    "code": 30,
+    "manufacturer": "Digsight"
+  },
+  {
+    "code": 31,
+    "manufacturer": "Brelec"
+  },
+  {
+    "code": 32,
+    "manufacturer": "Regal Way Co. Ltd"
+  },
+  {
+    "code": 33,
+    "manufacturer": "Praecipuus"
+  },
+  {
+    "code": 34,
+    "manufacturer": "Aristo-Craft Trains"
+  },
+  {
+    "code": 35,
+    "manufacturer": "Electronik & Model Produktion"
+  },
+  {
+    "code": 36,
+    "manufacturer": "DCCconcepts"
+  },
+  {
+    "code": 37,
+    "manufacturer": "NAC Services, Inc"
+  },
+  {
+    "code": 38,
+    "manufacturer": "Broadway Limited Imports, LLC"
+  },
+  {
+    "code": 39,
+    "manufacturer": "Educational Computer, Inc."
+  },
+  {
+    "code": 40,
+    "manufacturer": "KATO Precision Models"
+  },
+  {
+    "code": 41,
+    "manufacturer": "Passmann"
+  },
+  {
+    "code": 42,
+    "manufacturer": "Digirails"
+  },
+  {
+    "code": 43,
+    "manufacturer": "Ngineering"
+  },
+  {
+    "code": 44,
+    "manufacturer": "SPROG-DCC"
+  },
+  {
+    "code": 45,
+    "manufacturer": "ANE Model Co, Ltd"
+  },
+  {
+    "code": 46,
+    "manufacturer": "GFB Designs"
+  },
+  {
+    "code": 47,
+    "manufacturer": "Capecom"
+  },
+  {
+    "code": 48,
+    "manufacturer": "Hornby Hobbies Ltd"
+  },
+  {
+    "code": 49,
+    "manufacturer": "Joka Electronic"
+  },
+  {
+    "code": 50,
+    "manufacturer": "N&Q Electronics"
+  },
+  {
+    "code": 51,
+    "manufacturer": "DCC Supplies, Ltd"
+  },
+  {
+    "code": 52,
+    "manufacturer": "Krois-Modell"
+  },
+  {
+    "code": 53,
+    "manufacturer": "Rautenhaus Digital Vertrieb"
+  },
+  {
+    "code": 54,
+    "manufacturer": "TCH Technology"
+  },
+  {
+    "code": 55,
+    "manufacturer": "QElectronics GmbH"
+  },
+  {
+    "code": 56,
+    "manufacturer": "LDH"
+  },
+  {
+    "code": 57,
+    "manufacturer": "Rampino Elektronik"
+  },
+  {
+    "code": 58,
+    "manufacturer": "KRES GmbH"
+  },
+  {
+    "code": 59,
+    "manufacturer": "Tam Valley Depot"
+  },
+  {
+    "code": 60,
+    "manufacturer": "Bluecher-Electronic"
+  },
+  {
+    "code": 61,
+    "manufacturer": "TrainModules"
+  },
+  {
+    "code": 62,
+    "manufacturer": "Tams Elektronik GmbH"
+  },
+  {
+    "code": 63,
+    "manufacturer": "Noarail"
+  },
+  {
+    "code": 64,
+    "manufacturer": "Digital Bahn"
+  },
+  {
+    "code": 65,
+    "manufacturer": "Gaugemaster"
+  },
+  {
+    "code": 66,
+    "manufacturer": "Railnet Solutions, LLC"
+  },
+  {
+    "code": 67,
+    "manufacturer": "Heller Modenlbahn"
+  },
+  {
+    "code": 68,
+    "manufacturer": "MAWE Elektronik"
+  },
+  {
+    "code": 69,
+    "manufacturer": "E-Modell"
+  },
+  {
+    "code": 70,
+    "manufacturer": "Rocrail"
+  },
+  {
+    "code": 71,
+    "manufacturer": "New York Byano Limited"
+  },
+  {
+    "code": 72,
+    "manufacturer": "MTB Model"
+  },
+  {
+    "code": 73,
+    "manufacturer": "The Electric Railroad Company"
+  },
+  {
+    "code": 74,
+    "manufacturer": "PpP Digital"
+  },
+  {
+    "code": 75,
+    "manufacturer": "Digitools Elektronika, Kft"
+  },
+  {
+    "code": 76,
+    "manufacturer": "Auvidel"
+  },
+  {
+    "code": 77,
+    "manufacturer": "LS Models Sprl"
+  },
+  {
+    "code": 78,
+    "manufacturer": "Tehnologistic (train-O-matic)"
+  },
+  {
+    "code": 79,
+    "manufacturer": "Hattons Model Railways"
+  },
+  {
+    "code": 80,
+    "manufacturer": "Spectrum Engineering"
+  },
+  {
+    "code": 81,
+    "manufacturer": "GooVerModels"
+  },
+  {
+    "code": 82,
+    "manufacturer": "HAG Modelleisenbahn AG"
+  },
+  {
+    "code": 83,
+    "manufacturer": "JSS-Elektronic"
+  },
+  {
+    "code": 84,
+    "manufacturer": "Railflyer Model Prototypes, Inc."
+  },
+  {
+    "code": 85,
+    "manufacturer": "Uhlenbrock GmbH"
+  },
+  {
+    "code": 86,
+    "manufacturer": "Wekomm Engineering, GmbH"
+  },
+  {
+    "code": 87,
+    "manufacturer": "RR-Cirkits"
+  },
+  {
+    "code": 88,
+    "manufacturer": "HONS Model"
+  },
+  {
+    "code": 89,
+    "manufacturer": "Pojezdy.EU"
+  },
+  {
+    "code": 90,
+    "manufacturer": "Shourt Line"
+  },
+  {
+    "code": 91,
+    "manufacturer": "Railstars Limited"
+  },
+  {
+    "code": 92,
+    "manufacturer": "Tawcrafts"
+  },
+  {
+    "code": 93,
+    "manufacturer": "Kevtronics cc"
+  },
+  {
+    "code": 94,
+    "manufacturer": "Electroniscript, Inc."
+  },
+  {
+    "code": 95,
+    "manufacturer": "Sanda Kan Industrial, Ltd."
+  },
+  {
+    "code": 96,
+    "manufacturer": "PRICOM Design"
+  },
+  {
+    "code": 97,
+    "manufacturer": "Doehler & Haas"
+  },
+  {
+    "code": 98,
+    "manufacturer": "Harman DCC"
+  },
+  {
+    "code": 99,
+    "manufacturer": "Lenz Elektronik GmbH"
+  },
+  {
+    "code": 100,
+    "manufacturer": "Trenes Digitales"
+  },
+  {
+    "code": 101,
+    "manufacturer": "Bachmann Trains"
+  },
+  {
+    "code": 102,
+    "manufacturer": "Integrated Signal Systems"
+  },
+  {
+    "code": 103,
+    "manufacturer": "Nagasue System Design Office"
+  },
+  {
+    "code": 104,
+    "manufacturer": "TrainTech"
+  },
+  {
+    "code": 105,
+    "manufacturer": "Computer Dialysis France"
+  },
+  {
+    "code": 106,
+    "manufacturer": "Opherline1"
+  },
+  {
+    "code": 107,
+    "manufacturer": "Phoenix Sound Systems, Inc."
+  },
+  {
+    "code": 108,
+    "manufacturer": "Nagoden"
+  },
+  {
+    "code": 109,
+    "manufacturer": "Viessmann Modellspielwaren GmbH"
+  },
+  {
+    "code": 110,
+    "manufacturer": "AXJ Electronics"
+  },
+  {
+    "code": 111,
+    "manufacturer": "Haber & Koenig Electronics GmbH (HKE)"
+  },
+  {
+    "code": 112,
+    "manufacturer": "LSdigital"
+  },
+  {
+    "code": 113,
+    "manufacturer": "QS Industries (QSI)"
+  },
+  {
+    "code": 114,
+    "manufacturer": "Benezan Electronics"
+  },
+  {
+    "code": 115,
+    "manufacturer": "Dietz Modellbahntechnik"
+  },
+  {
+    "code": 116,
+    "manufacturer": "MyLocoSound"
+  },
+  {
+    "code": 117,
+    "manufacturer": "cT Elektronik"
+  },
+  {
+    "code": 118,
+    "manufacturer": "MÜT GmbH"
+  },
+  {
+    "code": 119,
+    "manufacturer": "W. S. Ataras Engineering"
+  },
+  {
+    "code": 120,
+    "manufacturer": "csikos-muhely"
+  },
+  {
+    "code": 122,
+    "manufacturer": "Berros"
+  },
+  {
+    "code": 123,
+    "manufacturer": "Massoth Elektronik, GmbH"
+  },
+  {
+    "code": 124,
+    "manufacturer": "DCC-Gaspar-Electronic"
+  },
+  {
+    "code": 125,
+    "manufacturer": "ProfiLok Modellbahntechnik GmbH"
+  },
+  {
+    "code": 126,
+    "manufacturer": "Möllehem Gårdsproduktion"
+  },
+  {
+    "code": 127,
+    "manufacturer": "Atlas Model Railroad Products"
+  },
+  {
+    "code": 128,
+    "manufacturer": "Frateschi Model Trains"
+  },
+  {
+    "code": 129,
+    "manufacturer": "Digitrax"
+  },
+  {
+    "code": 130,
+    "manufacturer": "cmOS Engineering"
+  },
+  {
+    "code": 131,
+    "manufacturer": "Trix Modelleisenbahn"
+  },
+  {
+    "code": 132,
+    "manufacturer": "ZTC"
+  },
+  {
+    "code": 133,
+    "manufacturer": "Intelligent Command Control"
+  },
+  {
+    "code": 134,
+    "manufacturer": "LaisDCC"
+  },
+  {
+    "code": 135,
+    "manufacturer": "CVP Products"
+  },
+  {
+    "code": 136,
+    "manufacturer": "NYRS"
+  },
+  {
+    "code": 138,
+    "manufacturer": "Train ID Systems"
+  },
+  {
+    "code": 139,
+    "manufacturer": "RealRail Effects"
+  },
+  {
+    "code": 140,
+    "manufacturer": "Desktop Station"
+  },
+  {
+    "code": 141,
+    "manufacturer": "Throttle-Up (Soundtraxx)"
+  },
+  {
+    "code": 142,
+    "manufacturer": "SLOMO Railroad Models"
+  },
+  {
+    "code": 143,
+    "manufacturer": "Model Rectifier Corp."
+  },
+  {
+    "code": 144,
+    "manufacturer": "DCC Train Automation"
+  },
+  {
+    "code": 145,
+    "manufacturer": "Zimo Elektronik"
+  },
+  {
+    "code": 146,
+    "manufacturer": "Rails Europ Express"
+  },
+  {
+    "code": 147,
+    "manufacturer": "Umelec Ing. Buero"
+  },
+  {
+    "code": 148,
+    "manufacturer": "BLOCKsignalling"
+  },
+  {
+    "code": 149,
+    "manufacturer": "Rock Junction Controls"
+  },
+  {
+    "code": 150,
+    "manufacturer": "Wm. K. Walthers, Inc."
+  },
+  {
+    "code": 151,
+    "manufacturer": "Electronic Solutions Ulm GmbH"
+  },
+  {
+    "code": 152,
+    "manufacturer": "Digi-CZ"
+  },
+  {
+    "code": 153,
+    "manufacturer": "Train Control Systems"
+  },
+  {
+    "code": 154,
+    "manufacturer": "Dapol Limited"
+  },
+  {
+    "code": 155,
+    "manufacturer": "Gebr. Fleischmann GmbH & Co."
+  },
+  {
+    "code": 156,
+    "manufacturer": "Nucky"
+  },
+  {
+    "code": 157,
+    "manufacturer": "Kuehn Ing."
+  },
+  {
+    "code": 158,
+    "manufacturer": "Fucik"
+  },
+  {
+    "code": 159,
+    "manufacturer": "LGB (Ernst Paul Lehmann Patentwerk)"
+  },
+  {
+    "code": 160,
+    "manufacturer": "MD Electronics"
+  },
+  {
+    "code": 161,
+    "manufacturer": "Modelleisenbahn GmbH (formerly Roco)"
+  },
+  {
+    "code": 162,
+    "manufacturer": "PIKO"
+  },
+  {
+    "code": 163,
+    "manufacturer": "WP Railshops"
+  },
+  {
+    "code": 164,
+    "manufacturer": "drM"
+  },
+  {
+    "code": 165,
+    "manufacturer": "Model Electronic Railway Group"
+  },
+  {
+    "code": 166,
+    "manufacturer": "Maison de DCC"
+  },
+  {
+    "code": 167,
+    "manufacturer": "Helvest Systems GmbH"
+  },
+  {
+    "code": 170,
+    "manufacturer": "AuroTrains"
+  },
+  {
+    "code": 173,
+    "manufacturer": "Arnold – Rivarossi"
+  },
+  {
+    "code": 186,
+    "manufacturer": "BRAWA Modellspielwaren GmbH & Co."
+  },
+  {
+    "code": 204,
+    "manufacturer": "Con-Com GmbH"
+  },
+  {
+    "code": 225,
+    "manufacturer": "Blue Digital"
+  },
+  {
+    "code": 238,
+    "manufacturer": "NMRA Reserved (for extended ID #’s)"
+  }
+]

@@ -49,7 +49,7 @@
         placeholder="Enter a CV address"
       />
     </mat-form-field>
-    <mat-form-field appearance="outline">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>Value</mat-label>
       <input
         matInput
@@ -63,6 +63,9 @@
         [ngModelOptions]="{ standalone: true }"
         placeholder="Read or enter a value"
       />
+      @if (manufacturerHint(); as hint) {
+        <mat-hint>{{ hint }}</mat-hint>
+      }
     </mat-form-field>
   </div>
 

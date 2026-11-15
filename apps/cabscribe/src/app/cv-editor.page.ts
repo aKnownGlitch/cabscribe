@@ -12,6 +12,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { DccSessionService } from 'common';
+import manufacturerCodes from './manufacturer-codes.json';
 import { CV_DEFINITIONS, CV_DEFINITIONS_SOURCE } from './cv-definitions';
 import { parseInteger } from './parse-integer';
 
@@ -40,6 +41,17 @@ export class CvEditorPage {
   readonly selectedCvDefinition = computed(() =>
     parseInteger(this.cvAddress(), 1)
   );
+  readonly manufacturerHint = computed(() => {
+    if (this.selectedCvDefinition() !== 8) {
+      return '';
+    }
+    const code = parseInteger(this.cvValue(), 0);
+    if (code === null) {
+      return '';
+    }
+    const manufacturer = manufacturerCodes.find((entry) => entry.code === code);
+    return `${code} = ${manufacturer?.manufacturer ?? 'Unknown manufacturer'}`;
+  });
   readonly isCustomCvAddress = computed(() => {
     const address = this.selectedCvDefinition();
     return address !== null &&
