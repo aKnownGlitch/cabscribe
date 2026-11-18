@@ -1,3 +1,30 @@
 {
-  "cSpell.words": ["NMRA"]
+  "cSpell.words": [
+    "ANIN",
+    "ANOUT",
+    "CBUS",
+    "DCCFREQ",
+    "driveable",
+    "EXRAIL",
+    "EXTT",
+    "FREEALL",
+    "HIDDENAP",
+    "JMRI",
+    "linearaddress",
+    "locoid",
+    "LOCOID",
+    "NMRA",
+    "NODEGROUP",
+    "nvsnumber",
+    "nvsvalue",
+    "PROGBOOST",
+    "pullup",
+    "RAILCOM",
+    "subaddress",
+    "taskid",
+    "tracktype",
+    "vpin",
+    "Vpin",
+    "VPIN"
+  ]
 }
