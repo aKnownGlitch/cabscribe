@@ -1,7 +1,21 @@
-@import "@angular/material/prebuilt-themes/indigo-pink.css";
+@use "@angular/material" as mat;
+@include mat.core();
+
+@font-face {
+  font-family: "CabScribe Fira Code";
+  src: url("./fonts/FiraCode-Variable.ttf") format("truetype");
+  font-weight: 300 700;
+  font-display: swap;
+}
 
 // Style for the CabScribe application
 :root {
+  @include mat.select-overrides((
+    panel-background-color: var(--mat-sys-surface-container, #fff),
+  ));
+
+  --command-font-family: "Fira Code", "CabScribe Fira Code", monospace;
+
   // Override the M3 system shape scale
   --mat-sys-corner-extra-small: 8px; // Default: 4px (menus, tooltips, text fields)
   --mat-sys-corner-small: 8px; // Default: 8px (chips, snackbars)
@@ -11,8 +25,15 @@
   --mat-sys-corner-full: 9999px; // Default: 9999px (buttons, badges, switches)
 }
 
-* {
-  box-sizing: border-box;
+:root.desktop {
+  --command-font-family: "CabScribe Fira Code", monospace;
+}
+
+code,
+.debug-output,
+#debug-command-input {
+  font-family: var(--command-font-family);
+  font-variant-ligatures: none;
 }
 
 html,
@@ -27,18 +48,4 @@ body {
   font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
-}
-
-button,
-input,
-select {
-  font: inherit;
-}
-
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-select:focus-visible {
-  outline: 3px solid #6ba9a1;
-  outline-offset: 2px;
 }

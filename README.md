@@ -108,6 +108,11 @@ hardware verification remains outstanding. Traffic appears in the serial debug l
 
 ### Extended Configuration and Operations
 
+Command previews and the serial monitor use Fira Code. The desktop app bundles
+the font with its [SIL Open Font License](apps/cabscribe/public/fonts/FiraCode-OFL.txt)
+for offline use. The web app requests it from Google Fonts and can fall back to
+the bundled copy.
+
 Use the puzzle-piece button for **Extended Configuration** and the
 **Operations** button for layout controls. Use the arrow keys to move between
 tabs and Enter or Space to select one. Select a command to see its preview and
