@@ -14,15 +14,7 @@ import {
 /**
  * Extended Configuration page
  *
- * Displays configuration and diagnostics commands organized by domain tabs:
- * 1. Track power and track configuration
- * 2. Turnouts, sensors, and outputs
- * 3. JMRI-compatible information and roster
- * 4. Turntables
- * 5. Network configuration and diagnostics
- * 6. Configuration and diagnostics
- *
- * Phase 0: Display page shell and tabs. Actual command forms come in Phase 2.
+ * Displays configuration and diagnostics commands organized by domain tabs.
  */
 @Component({
   selector: "app-configuration",
@@ -41,20 +33,19 @@ import {
 export class ConfigurationPage implements OnInit, OnDestroy {
   private readonly commandService = inject(DccCommandService);
 
-  // Phase 0: Tabs are defined in the template but no commands are executed
   readonly tabs = [
-    "Track power and track configuration",
-    "Turnouts, sensors, and outputs",
-    "JMRI-compatible information and roster",
-    "Turntables",
-    "Network configuration and diagnostics",
-    "Configuration and diagnostics",
+    { label: "Power", category: "Track power and track configuration" },
+    { label: "Turnouts", category: "Turnouts, sensors, and outputs" },
+    { label: "JMRI", category: "JMRI-compatible information and roster" },
+    { label: "Turntables", category: "Turntables" },
+    { label: "Network", category: "Network configuration and diagnostics" },
+    { label: "Diagnostics", category: "Configuration and diagnostics" },
   ];
 
   readonly selectedTabIndex = signal(0);
 
   readonly selectedCategory = computed(
-    () => this.tabs[this.selectedTabIndex()],
+    () => this.tabs[this.selectedTabIndex()].category,
   );
 
   readonly categoryCommands = computed(() => {

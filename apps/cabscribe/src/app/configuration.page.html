@@ -6,9 +6,9 @@
       class="commands-tabs"
     >
       @for (tab of tabs; track trackByTabIndex($index)) {
-      <mat-tab [label]="tab">
+      <mat-tab [label]="tab.label">
         <ng-template mat-tab-label>
-          <span>{{ tab }}</span>
+          <span>{{ tab.label }}</span>
         </ng-template>
 
         <div class="tab-content">

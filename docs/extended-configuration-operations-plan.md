@@ -58,7 +58,10 @@ verification gate before enabling commands against hardware.
   `model_training` icon.
 - Use inline SVG icons consistent with the existing header. Do not introduce
   external icon fonts; the current application uses a restrictive Content
-  Security Policy.
+  Security Policy. Use the filled SVG paths from
+  [Google Material Icons](https://github.com/google/material-design-icons)
+  and ship the [Apache 2.0 license](../apps/cabscribe/public/material-icons-license.txt)
+  with the app.
 - Provide visible tooltips, accessible names, active-route styling, and
   `aria-current="page"` for both buttons.
 - Add client-side routes, for example `/configuration` and `/operations`.
@@ -70,28 +73,28 @@ verification gate before enabling commands against hardware.
 
 ### Extended Configuration tabs
 
-Use scrollable tabs that retain these area names from the command inventory:
+Use scrollable tabs with short labels mapped to the command inventory areas:
 
-1. Track power and track configuration
-2. Turnouts, sensors, and outputs
-3. JMRI-compatible information and roster
-4. Turntables
-5. Network configuration and diagnostics
-6. Configuration and diagnostics
+1. **Power** — Track power and track configuration
+2. **Turnouts** — Turnouts, sensors, and outputs
+3. **JMRI** — JMRI-compatible information and roster
+4. **Turntables** — Turntables
+5. **Network** — Network configuration and diagnostics
+6. **Diagnostics** — Configuration and diagnostics
 
 ### Operations tabs
 
-Use scrollable tabs for:
+Use scrollable tabs with short labels mapped to the command inventory areas:
 
-1. Station and throttle
-2. Track power and track configuration
-3. Turnouts, sensors, and outputs
-4. JMRI-compatible information and roster
-5. Turntables
-6. DCC accessory and programming commands
-7. Consists, momentum, and raw packets
-8. Pins, displays, sound, and peripherals
-9. EXRAIL automation
+1. **Throttle** — Station and throttle
+2. **Track** — Track power and track configuration
+3. **Turnouts** — Turnouts, sensors, and outputs
+4. **JMRI** — JMRI-compatible information and roster
+5. **Turntables** — Turntables
+6. **Accessories** — DCC accessory and programming commands
+7. **Consists** — Consists, momentum, and raw packets
+8. **Pins** — Pins, displays, sound, and peripherals
+9. **Automation** — EXRAIL automation
 
 Tabs are an information architecture boundary, not a capability guarantee.
 Hide or disable command forms that the active connection or firmware does not
@@ -263,7 +266,8 @@ notes state the exact supported command subset and limitations.
 ## 8. Acceptance criteria
 
 - Extended Configuration and Operations are reachable from distinct,
-  accessible header buttons with the requested icons.
+  accessible header buttons with the requested icons. Both icons remain
+  visible when the header wraps on narrow screens.
 - Each page exposes its document-derived areas as navigable tabs.
 - Selecting a command form shows the correct typed inputs and exact command
   preview; invalid input blocks transmission.

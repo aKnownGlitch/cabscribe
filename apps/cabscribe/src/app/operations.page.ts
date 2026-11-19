@@ -14,18 +14,7 @@ import {
 /**
  * Operations page
  *
- * Displays operational commands organized by domain tabs:
- * 1. Station and throttle
- * 2. Track power and track configuration
- * 3. Turnouts, sensors, and outputs
- * 4. JMRI-compatible information and roster
- * 5. Turntables
- * 6. DCC accessory and programming commands
- * 7. Consists, momentum, and raw packets
- * 8. Pins, displays, sound, and peripherals
- * 9. EXRAIL automation
- *
- * Phase 0: Display page shell and tabs. Actual command forms come in Phase 2.
+ * Displays operational commands organized by domain tabs.
  */
 @Component({
   selector: "app-operations",
@@ -44,23 +33,22 @@ import {
 export class OperationsPage implements OnInit, OnDestroy {
   private readonly commandService = inject(DccCommandService);
 
-  // Phase 0: Tabs are defined in the template but no commands are executed
   readonly tabs = [
-    "Station and throttle",
-    "Track power and track configuration",
-    "Turnouts, sensors, and outputs",
-    "JMRI-compatible information and roster",
-    "Turntables",
-    "DCC accessory and programming commands",
-    "Consists, momentum, and raw packets",
-    "Pins, displays, sound, and peripherals",
-    "EXRAIL automation",
+    { label: "Throttle", category: "Station and throttle" },
+    { label: "Track", category: "Track power and track configuration" },
+    { label: "Turnouts", category: "Turnouts, sensors, and outputs" },
+    { label: "JMRI", category: "JMRI-compatible information and roster" },
+    { label: "Turntables", category: "Turntables" },
+    { label: "Accessories", category: "DCC accessory and programming commands" },
+    { label: "Consists", category: "Consists, momentum, and raw packets" },
+    { label: "Pins", category: "Pins, displays, sound, and peripherals" },
+    { label: "Automation", category: "EXRAIL automation" },
   ];
 
   readonly selectedTabIndex = signal(0);
 
   readonly selectedCategory = computed(
-    () => this.tabs[this.selectedTabIndex()],
+    () => this.tabs[this.selectedTabIndex()].category,
   );
 
   readonly categoryCommands = computed(() => {

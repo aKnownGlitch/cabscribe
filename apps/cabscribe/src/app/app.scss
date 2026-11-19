@@ -71,10 +71,7 @@ app-root {
   font-weight: 600;
 }
 
-.connection-settings-button,
-.editor-toggle-button,
-.debug-toggle-button,
-.table-toggle-button {
+.topbar-button {
   display: grid;
   width: 36px;
   height: 36px;
@@ -87,41 +84,28 @@ app-root {
   cursor: pointer;
 }
 
-.connection-settings-button:hover,
-.editor-toggle-button:hover,
-.debug-toggle-button:hover,
-.table-toggle-button:hover {
+.topbar-button:hover {
   border-color: #aebfc6;
   background: #f7f9fa;
 }
 
-.connection-settings-button:focus-visible,
-.editor-toggle-button:focus-visible,
-.debug-toggle-button:focus-visible,
-.table-toggle-button:focus-visible {
+.topbar-button:focus-visible {
   outline: 3px solid rgb(23 107 104 / 28%);
   outline-offset: 2px;
 }
 
-.editor-toggle-button.active,
-.debug-toggle-button.active,
-.table-toggle-button.active {
+.topbar-button.active {
   border-color: #176b68;
   background: #e6f2f1;
   color: #176b68;
 }
 
-.editor-toggle-button svg.filled-icon,
-.debug-toggle-button svg.filled-icon,
-.table-toggle-button svg.filled-icon {
+.topbar-button svg.filled-icon {
   fill: currentColor;
   stroke: none;
 }
 
-.connection-settings-button svg,
-.editor-toggle-button svg,
-.debug-toggle-button svg,
-.table-toggle-button svg {
+.topbar-button svg {
   width: 19px;
   height: 19px;
   fill: none;
@@ -709,7 +693,14 @@ app-cv-table-page {
   }
 
   .topbar {
-    padding: 0 20px;
+    flex-wrap: wrap;
+    row-gap: 8px;
+    padding: 12px 20px;
+  }
+
+  .connection-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .workspace {
