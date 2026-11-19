@@ -55,6 +55,27 @@ command details, and licensing.
 | `<I id EXTT vpin homeAngle>` | Create an EXTT turntable. |
 | `<I id ADD position value angle>` | Add a position to a turntable. |
 
+### Network configuration and diagnostics
+
+These settings and diagnostics are available only on supported
+hardware/builds; some are restricted to USB serial.
+
+| Command | Purpose |
+| --- | --- |
+| `<C HOSTNAME hostname>` | Set the network hostname. |
+| `<C NODEGROUP group>` | Set the node group (`1..254`). |
+| `<C NODE ON>` | Enable node mode without throttle support (testing-oriented). |
+| `<C ETHERNET onoff>` | Enable or disable Ethernet where supported. |
+| `<C WIFI HOSTNAME hostname>` | Legacy hostname form (deprecated; use `C HOSTNAME`). |
+| `<C WIFI DEFAULT>` | Restore default Wi-Fi credentials. |
+| `<C WIFI ssid password>` | Set Wi-Fi station credentials. |
+| `<C WIFI TEMP ssid password>` | Set temporary Wi-Fi station credentials. |
+| `<C WIFI AP ssid password [channel]>` | Configure Wi-Fi access-point mode. |
+| `<C WIFI HIDDENAP ssid password [channel]>` | Configure hidden access-point mode. |
+| `<C WIFI onoff>` | Enable or disable Wi-Fi where supported. |
+| `<D WIFI onoff>` / `<D ETHERNET onoff>` / `<D WIT onoff>` / `<D WEBSOCKET onoff>` / `<D NODE onoff>` | Toggle Wi-Fi, Ethernet, WiThrottle, WebSocket, or node diagnostics. |
+| `<D WIFI SHOW>` / `<D ETHERNET SHOW>` | Show network status. |
+
 ### Configuration and diagnostics
 
 These settings and diagnostic commands can be platform-dependent or restricted
@@ -62,16 +83,6 @@ to USB serial. Some change persistent state.
 
 | Command | Purpose |
 | --- | --- |
-| `<C HOSTNAME hostname>` | Set the network hostname. |
-| `<C NODEGROUP group>` | Set the node group (`1..254`). |
-| `<C NODE ON>` | Enable node mode without throttle support (testing-oriented). |
-| `<C WIFI HOSTNAME hostname>` | Legacy hostname form (deprecated; use `C HOSTNAME`). |
-| `<C WIFI DEFAULT>` | Restore default Wi-Fi credentials. |
-| `<C WIFI ssid password>` | Set Wi-Fi station credentials. |
-| `<C WIFI TEMP ssid password>` | Set temporary Wi-Fi station credentials. |
-| `<C WIFI AP ssid password [channel]>` | Configure Wi-Fi access-point mode. |
-| `<C WIFI HIDDENAP ssid password [channel]>` | Configure hidden access-point mode. |
-| `<C WIFI onoff>` / `<C ETHERNET onoff>` | Enable or disable Wi-Fi/Ethernet where supported. |
 | `<C NVS nvsnumber nvsvalue>` | Set a non-volatile-storage value as an integer or quoted string. |
 | `<C RAILCOM onoff>` | Enable or disable RailCom cutout where supported. |
 | `<C SNIFFER onoff>` | Toggle sniffer output in supported builds. |
@@ -83,8 +94,6 @@ to USB serial. Some change persistent state.
 | `<D ANIN vpin>` | Read and display an analogue input. |
 | `<D CMD onoff>` | Enable or disable command-input diagnostics. |
 | `<D RAILCOM onoff>` | Enable or disable RailCom diagnostics. |
-| `<D WIFI onoff>` / `<D ETHERNET onoff>` / `<D WIT onoff>` / `<D WEBSOCKET onoff>` / `<D NODE onoff>` | Toggle Wi-Fi, Ethernet, WiThrottle, WebSocket, or node diagnostics. |
-| `<D WIFI SHOW>` / `<D ETHERNET SHOW>` | Show network status. |
 | `<D NVS>` / `<D NVS value>` | Show all non-zero values or one selected value. |
 | `<D ANOUT vpin position>` / `<D ANOUT vpin position profile>` | Legacy analogue-output test commands (deprecated; use `z`). |
 | `<D SERVO vpin position [profile]>` | Test a servo output. |
