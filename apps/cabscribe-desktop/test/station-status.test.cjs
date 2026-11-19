@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const { EventEmitter } = require("node:events");
 const { readFileSync } = require("node:fs");
 const path = require("node:path");
-const { test } = require("node:test");
+const { mock, test } = require("node:test");
 const { runInNewContext } = require("node:vm");
 
 function loadDesktop() {
@@ -11,29 +11,25 @@ function loadDesktop() {
   const messages = [];
   const contents = {
     mainFrame: {},
-    setWindowOpenHandler() {},
-    on() {},
+    setWindowOpenHandler: mock.fn(),
+    on: mock.fn(),
     send: (channel, payload) => messages.push({ channel, ...payload }),
   };
   const event = { sender: contents, senderFrame: contents.mainFrame };
   let bridge;
-  let port;
+  let drainError;
   class MockPort extends EventEmitter {
     static async list() { return [{ path: "test-port" }]; }
-    constructor() {
-      super();
-      port = this;
-    }
     open(done) { this.isOpen = true; done(); }
     write(command, done) { writes.push(command); done(); }
-    drain(done) { done(this.drainError); }
+    drain(done) { done(drainError); }
   }
   const electron = {
-    app: { whenReady: () => ({ then: (ready) => ready() }), on() {} },
+    app: { whenReady: () => ({ then: (ready) => ready() }), on: mock.fn() },
     BrowserWindow: class {
       webContents = contents;
-      on() {}
-      async loadFile() {}
+      on = mock.fn();
+      loadFile = mock.fn(() => Promise.resolve());
     },
     ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) },
     contextBridge: { exposeInMainWorld: (_name, value) => { bridge = value; } },
@@ -52,11 +48,14 @@ function loadDesktop() {
       },
     }, { filename });
   }
-  return { bridge, handlers, event, writes, messages, getPort: () => port };
+  return {
+    bridge, handlers, event, writes, messages,
+    setDrainError: (error) => { drainError = error; },
+  };
 }
 
 test("desktop status IPC writes and drains only the fixed query", async () => {
-  const { bridge, writes, messages, getPort } = loadDesktop();
+  const { bridge, writes, messages, setDrainError } = loadDesktop();
   await assert.rejects(bridge.requestStationStatus(), /Connect to a command station/);
   const connection = await bridge.connect("test-port");
   assert.equal(connection.capabilities.stationStatus, true);
@@ -68,7 +67,7 @@ test("desktop status IPC writes and drains only the fixed query", async () => {
     message: "<s>",
   }]);
 
-  getPort().drainError = new Error("Device removed");
+  setDrainError(new Error("Device removed"));
   await assert.rejects(bridge.requestStationStatus(), /transmission failed: Device removed/);
   assert.equal(messages.length, 1);
 });
