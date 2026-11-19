@@ -140,7 +140,9 @@ reviewable catalog. Each command definition should capture:
 
 The UI must call an application-level command service rather than write serial
 bytes directly. Keep transport-specific work behind the existing typed
-transport boundary and share command execution state across pages. Do not
+transport boundary. Retain in-flight state across navigation to prevent
+overlapping commands, but clear command-specific results when the user changes
+tabs or pages; require them to run a command again to review its result. Do not
 construct a successful result merely because a write to the serial stream
 completed.
 
@@ -150,9 +152,11 @@ DCC-EX source revision and target firmware.
 
 ## 6. Safety, privacy, and recovery
 
-- Require an explicit review/confirmation step for persistent configuration,
-  destructive commands, and commands with substantial or difficult-to-reverse
-  effects. The confirmation must show the exact command and its target.
+- Require a second confirmation only for raw DCC packet commands. Use the
+  wording: **“For safety, please confirm this command prior to transmission.”**
+  Show the exact command and target in that confirmation. Other commands are
+  sent only after the user explicitly submits their form; additional
+  confirmation categories can be revisited before implementation.
 - Keep time-critical operations such as emergency stop discoverable and avoid
   placing them behind a generic confirmation flow; make their immediate
   effect unmistakable.
@@ -165,7 +169,8 @@ DCC-EX source revision and target firmware.
   reconnect before trying again.
 - Keep passwords and other credentials masked in form controls and redact
   them from debug output, errors, analytics, and any command preview that is
-  not explicitly user-reviewed. Do not persist credentials or command history.
+  not explicitly user-reviewed. Keep credentials and command results in
+  session memory only; do not persist them.
 - Validate inputs before transmission using verified command constraints.
   Reject invalid values explicitly; do not clamp, coerce, or substitute.
 - Require capability and firmware checks for commands marked conditional in
@@ -179,12 +184,14 @@ DCC-EX source revision and target firmware.
 
 - Update the product requirements to include the two pages and explicitly
   supersede applicable non-goals.
-- Select the initial command subset and document the DCC-EX firmware/source
-  revision and hardware configuration.
+- Catalog all command forms, but allow transmission only for forms verified
+  against the target hardware/firmware. Keep unverified forms preview-only
+  until verified. Document the DCC-EX firmware/source revision and hardware
+  configuration.
 - Verify command syntax, serial framing, responses/broadcasts, side effects,
   feature conditions, and safe recovery for that subset.
-- Decide the confirmation policy for power changes, resets, deletion, and
-  raw-packet commands.
+- Apply the agreed confirmation policy: second confirmation for raw DCC
+  packets; explicit form submission for other commands.
 
 **Exit criteria:** The approved subset has a reviewed capability/risk matrix
 and a testable command/response contract. No unverified command is enabled.
@@ -218,6 +225,9 @@ and unsupported/invalid inputs cannot reach the transport.
 ### Phase 3 — Safe query and low-impact operations
 
 - Implement a small, approved set of read-only status/list commands first.
+- Query the command-station version and show it in the UI. Use the reported
+  version to identify the connected firmware; do not treat version detection
+  alone as proof that an unverified command is safe to transmit.
 - Validate direct replies, asynchronous broadcasts, missing replies, and
   device errors against fixtures and agreed hardware.
 - Add accessible progress and result feedback without implying more certainty
@@ -229,8 +239,7 @@ valid results from timeout, unsupported, malformed, and disconnected states.
 ### Phase 4 — Configuration and state-changing operations
 
 - Add configuration changes and routine operational commands by risk class.
-- Add review/confirmation and explicit outcome handling for persistent,
-  destructive, or high-impact operations.
+- Add the agreed raw-packet confirmation and explicit outcome handling.
 - Add redaction for network credentials before exposing Wi-Fi commands.
 - Add raw-packet commands only as a separately reviewed advanced capability.
 
@@ -262,26 +271,33 @@ notes state the exact supported command subset and limitations.
   clearly identified and not sent.
 - The UI distinguishes transmission from confirmed command outcome and never
   shows a success-shaped fallback for missing or uncertain responses.
-- High-impact changes show the exact target and command for confirmation;
-  credentials are not exposed in logs or persisted.
+- Raw DCC packet commands show the exact target and command in a confirmation
+  using the approved wording; credentials and command results are not
+  persisted.
 - Navigation preserves connection and existing application state, and the CV
-  editor and CV Table retain their existing behavior.
+  editor and CV Table retain their existing behavior. Command results clear
+  when the user navigates and must be requested again.
 - Tests cover command serialization, capabilities, confirmation, credential
   redaction, response parsing, and failure recovery for every enabled command
   family.
 
-## 9. Decisions to resolve before implementation
+## 9. Resolved decisions and remaining research
 
-- Which command forms are in the first hardware-verified release subset?
-- Should read-only commands be available while disconnected as preview-only
-  forms, or should selection itself be gated?
-- Which mutations require confirmation, and what exact wording is required for
-  track power, loco motion, deletion, reset, and raw packets?
-- Which DCC-EX firmware/build feature flags can the app discover, and which
-  require explicit user selection?
-- What protocol evidence distinguishes a command being accepted from its
-  effect being completed?
-- What is the approved storage/redaction policy for network credentials and
-  sensitive serial traffic?
-- Should command-specific results remain visible when navigating between
-  tabs/pages, and for how long?
+- **Command availability:** Represent all command forms from the inventory.
+  Permit transmission only for forms verified against the target
+  hardware/firmware; keep unverified forms preview-only until verified.
+- **Disconnected state:** Allow preview-only command selection while
+  disconnected, but block transmission.
+- **Controller version:** Query the controller version and display it in the
+  UI. Version detection does not replace hardware verification.
+- **Command completion:** Check the applicable NMRA specifications and
+  DCC-EX protocol behavior to determine what evidence distinguishes
+  transmission, acceptance, and completed effects.
+- **Credential and result retention:** Keep credentials and command results
+  in session memory only. Do not persist them.
+- **Navigation:** Clear command-specific results on tab or page navigation.
+  Users must re-run the command to review its result.
+- **Confirmation:** Require a second confirmation only for raw DCC packet
+  commands. Use the exact prompt: “For safety, please confirm this command
+  prior to transmission.” Show the exact command and target. Other commands
+  require explicit form submission, without a second confirmation.
