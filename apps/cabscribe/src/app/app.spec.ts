@@ -707,9 +707,22 @@ describe("App", () => {
     );
   });
 
-  it("navigates between the editor, CV table, and debug pages from the header", async () => {
+  it("navigates between all five pages from the header without losing the serial session", async () => {
+    const transport = {
+      listPorts: vi.fn().mockResolvedValue([{ id: "test", label: "DCC-EX" }]),
+      connect: vi.fn().mockResolvedValue({
+        capabilities: { serviceModeRead: true, serviceModeWrite: false },
+      }),
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      readCv: vi.fn(),
+      writeCv: vi.fn(),
+    };
+    TestBed.overrideProvider(DCC_TRANSPORT, { useValue: transport });
     const fixture = TestBed.createComponent(App);
     await showEditor(fixture);
+    const app = fixture.componentInstance;
+    await app.session.connect("test");
+    app.updateTargetAddress(3);
     const element = fixture.nativeElement as HTMLElement;
     const tableButton = element.querySelector<HTMLButtonElement>(
       ".table-toggle-button",
@@ -720,8 +733,12 @@ describe("App", () => {
     const debugButton = element.querySelector<HTMLButtonElement>(
       ".debug-toggle-button",
     );
-    expect(editorButton?.nextElementSibling).toBe(tableButton);
-    expect(tableButton?.nextElementSibling).toBe(debugButton);
+    const configurationButton = element.querySelector<HTMLButtonElement>(
+      'button[aria-label="Extended Configuration"]',
+    );
+    const operationsButton = element.querySelector<HTMLButtonElement>(
+      'button[aria-label="Operations"]',
+    );
     expect(editorButton?.getAttribute("aria-label")).toBe("Single CV editor");
     expect(editorButton?.getAttribute("aria-current")).toBe("page");
     expect(tableButton?.getAttribute("aria-label")).toBe("Read CV table");
@@ -732,6 +749,18 @@ describe("App", () => {
     expect(element.querySelector("app-cv-table-page")).not.toBeNull();
     expect(tableButton?.getAttribute("aria-current")).toBe("page");
     expect(element.querySelector(".scan-button")).not.toBeNull();
+    for (const [button, routeComponent] of [
+      [configurationButton, "app-configuration"],
+      [operationsButton, "app-operations"],
+    ] as const) {
+      button?.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(element.querySelector(routeComponent)).not.toBeNull();
+      expect(element.querySelector(".address-card")).toBeNull();
+      expect(element.querySelectorAll('header [aria-current="page"]')).toHaveLength(1);
+      expect(button?.getAttribute("aria-current")).toBe("page");
+    }
     debugButton?.click();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -745,5 +774,12 @@ describe("App", () => {
     expect(element.querySelector("app-cv-editor-page")).not.toBeNull();
     expect(editorButton?.getAttribute("aria-current")).toBe("page");
     expect(tableButton?.getAttribute("aria-current")).toBeNull();
+    expect(app.session.connection()).toMatchObject({
+      status: "connected",
+      port: { id: "test" },
+    });
+    expect(app.targetAddress()).toBe("3");
+    expect(transport.connect).toHaveBeenCalledOnce();
+    expect(transport.disconnect).not.toHaveBeenCalled();
   });
 });

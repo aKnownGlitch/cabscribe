@@ -1,14 +1,18 @@
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import {
   DCC_TRANSPORT,
+  DccConnectionInfo,
   DccTransportError,
   DccTransportErrorCode,
   SerialLogMessage,
   SerialPortInfo,
 } from './dcc-transport';
+import { DccStationStatus, DccStationStatusReader } from './dcc-station-status';
 
 const MAX_SERIAL_LOG_LINES = 1000;
 const ADDRESS_CONFIRMATION_TIMEOUT_MS = 15000;
+const STATION_STATUS_TIMEOUT_MS = 3000;
+const STATUS_BROADCAST_WINDOW_MS = 200;
 
 export type AddressConfirmationState =
   | { status: 'idle' }
@@ -21,10 +25,7 @@ export type ConnectionState =
   | {
       status: 'connected';
       port: SerialPortInfo;
-      capabilities: {
-        serviceModeRead: boolean;
-        serviceModeWrite: boolean;
-      };
+      capabilities: DccConnectionInfo['capabilities'];
       message?: string;
     }
   | { status: 'unavailable' | 'error'; message: string };
@@ -92,8 +93,12 @@ export class DccSessionService {
     typeof this.transport.requestLocomotiveAddress === 'function' &&
     typeof this.transport.onSerialMessage === 'function';
   readonly addressConfirmation = signal<AddressConfirmationState>({ status: 'idle' });
+  private readonly stationStatusActive = signal(false);
+  private readonly stationStatusNeedsReconnect = signal(false);
+  private readonly debugWriteCount = signal(0);
   readonly operationInProgress = computed(
     () =>
+      this.stationStatusActive() ||
       this.bulkOperationActive() ||
       this.addressConfirmation().status === 'confirming' ||
       ['reading', 'writing', 'verifying'].includes(this.operation().kind)
@@ -104,6 +109,10 @@ export class DccSessionService {
   };
   private addressFrame = '';
   private confirmationNeedsReconnect = false;
+  private stationStatusRequest?: {
+    receive: (chunk: string) => void;
+    reject: (error: DccTransportError) => void;
+  };
 
   constructor() {
     const removeDisconnectListener = this.transport.onDisconnected?.((message) =>
@@ -115,12 +124,14 @@ export class DccSessionService {
       );
       if (message.direction === 'incoming') {
         this.receiveAddressResponse(message.message);
+        this.stationStatusRequest?.receive(message.message);
       }
     });
     inject(DestroyRef).onDestroy(() => {
       removeDisconnectListener?.();
       removeSerialListener?.();
       this.addressResponse?.reject(new Error('Address confirmation cancelled.'));
+      this.cancelStationStatus();
     });
   }
 
@@ -142,11 +153,8 @@ export class DccSessionService {
       fail('Address confirmation is not available on this connection.');
       return;
     }
-    if (
-      this.bulkOperationActive() ||
-      ['reading', 'writing', 'verifying'].includes(this.operation().kind)
-    ) {
-      fail('Wait for the current CV operation to finish.');
+    if (this.operationInProgress()) {
+      fail('Wait for the current serial operation to finish.');
       return;
     }
     if (this.confirmationNeedsReconnect) {
@@ -269,6 +277,7 @@ export class DccSessionService {
     try {
       const connectionInfo = await this.transport.connect(portId);
       this.confirmationNeedsReconnect = false;
+      this.stationStatusNeedsReconnect.set(false);
       this.addressConfirmation.set({ status: 'idle' });
       this.connection.set({
         status: 'connected',
@@ -281,6 +290,7 @@ export class DccSessionService {
   }
 
   async disconnect(): Promise<void> {
+    this.cancelStationStatus();
     this.addressResponse?.reject(new Error('Disconnected during address confirmation.'));
     try {
       await this.transport.disconnect();
@@ -295,6 +305,10 @@ export class DccSessionService {
   }
 
   async readCv(address: number, cv: number): Promise<void> {
+    if (this.stationStatusActive()) {
+      this.operation.set({ kind: 'read-failure', address, cv, message: 'Wait for the station status query to finish.' });
+      return;
+    }
     if (this.addressConfirmation().status === 'confirming') {
       this.operation.set({ kind: 'read-failure', address, cv, message: 'Wait for address confirmation to finish.' });
       return;
@@ -335,6 +349,10 @@ export class DccSessionService {
   }
 
   async writeCv(address: number, cv: number, value: number): Promise<void> {
+    if (this.stationStatusActive()) {
+      this.operation.set({ kind: 'write-failure', address, cv, value, message: 'Wait for the station status query to finish.' });
+      return;
+    }
     if (this.addressConfirmation().status === 'confirming') {
       this.operation.set({ kind: 'write-failure', address, cv, value, message: 'Wait for address confirmation to finish.' });
       return;
@@ -409,12 +427,16 @@ export class DccSessionService {
   }
 
   async sendCommand(command: string): Promise<void> {
+    if (this.stationStatusActive()) {
+      throw new Error('Wait for the station status query to finish.');
+    }
     if (this.connection().status !== 'connected') {
       throw new Error('Connect to a command station before sending a command.');
     }
     if (!this.transport.sendRawCommand) {
       throw new Error('Sending raw commands is not supported on this connection.');
     }
+    this.debugWriteCount.update((count) => count + 1);
     try {
       await this.transport.sendRawCommand(command);
     } catch (error) {
@@ -423,7 +445,84 @@ export class DccSessionService {
           ? error.message
           : 'Failed to send command to command station.'
       );
+    } finally {
+      this.debugWriteCount.update((count) => count - 1);
     }
+  }
+
+  stationStatusBlock(): DccTransportError | undefined {
+    const connection = this.connection();
+    if (connection.status !== 'connected') {
+      return new DccTransportError('not-connected', 'Connect to a command station before reading its status.');
+    }
+    if (!connection.capabilities.stationStatus || !this.transport.sendRawCommand || !this.transport.onSerialMessage) {
+      return new DccTransportError('unsupported', 'Status reads are not hardware-verified for this connection. Preview only.');
+    }
+    if (this.stationStatusNeedsReconnect()) {
+      return new DccTransportError('unsupported', 'Reconnect before retrying so a delayed reply cannot be mistaken for a new one.');
+    }
+    if (this.operationInProgress() || this.debugWriteCount() > 0) {
+      return new DccTransportError('unsupported', 'Wait for the current serial operation to finish.');
+    }
+    return undefined;
+  }
+
+  async readStationStatus(): Promise<DccStationStatus> {
+    const block = this.stationStatusBlock();
+    if (block) throw block;
+
+    this.stationStatusActive.set(true);
+    const reader = new DccStationStatusReader();
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    let broadcastWindow: ReturnType<typeof setTimeout> | undefined;
+    let writeFinished = false;
+    let captured: DccStationStatus | undefined;
+    let finishWrite: (() => void) | undefined;
+    const response = new Promise<DccStationStatus>((resolve, reject) => {
+      finishWrite = () => {
+        writeFinished = true;
+        if (captured) resolve(captured);
+      };
+      this.stationStatusRequest = {
+        reject,
+        receive: (chunk) => {
+          try {
+            reader.receive(chunk);
+            if (broadcastWindow === undefined && reader.result()) {
+              broadcastWindow = setTimeout(() => {
+                captured = reader.result();
+                if (captured && writeFinished) resolve(captured);
+              }, STATUS_BROADCAST_WINDOW_MS);
+            }
+          } catch (error) {
+            reject(error);
+          }
+        },
+      };
+      deadline = setTimeout(() => reject(new DccTransportError(
+        'timeout', 'Station status timed out. Reconnect before retrying.',
+      )), STATION_STATUS_TIMEOUT_MS);
+    });
+    try {
+      const write = async () => {
+        await this.transport.sendRawCommand!('<s>');
+        finishWrite?.();
+      };
+      const [status] = await Promise.all([response, write()]);
+      return status;
+    } catch (error) {
+      this.stationStatusNeedsReconnect.set(true);
+      throw error;
+    } finally {
+      clearTimeout(deadline);
+      clearTimeout(broadcastWindow);
+      this.stationStatusRequest = undefined;
+      this.stationStatusActive.set(false);
+    }
+  }
+
+  private cancelStationStatus(): void {
+    this.stationStatusRequest?.reject(new DccTransportError('disconnected', 'Disconnected during the station status query.'));
   }
 
   private connectionFailure(error: unknown): ConnectionState {
@@ -438,6 +537,7 @@ export class DccSessionService {
   }
 
   private handleConnectionLost(message: string): void {
+    this.cancelStationStatus();
     this.addressResponse?.reject(new Error(message));
     const confirmation = this.addressConfirmation();
     if (confirmation.status === 'confirmed') {

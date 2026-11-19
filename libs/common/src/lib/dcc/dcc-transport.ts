@@ -9,6 +9,8 @@ export interface DccConnectionInfo {
   capabilities: {
     serviceModeRead: boolean;
     serviceModeWrite: boolean;
+    /** Set only for a hardware-verified DCC-EX status-query connection. */
+    stationStatus?: boolean;
   };
   message?: string;
 }

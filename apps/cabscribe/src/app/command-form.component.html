@@ -1,0 +1,125 @@
+@if (commands().length === 0) {
+  <p>No commands available for {{ category() }}.</p>
+} @else {
+  @let draft = commandService.composing();
+  <div class="command-fields">
+    <mat-form-field appearance="outline">
+      <mat-label>Command</mat-label>
+      <mat-select [value]="draft?.definition?.id ?? ''" (selectionChange)="selectCommand($event.value)">
+        <mat-option value="">Select a command</mat-option>
+        @for (command of commands(); track command.id) {
+          <mat-option [value]="command.id">{{ command.displayName }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    @if (draft) {
+      <p>{{ draft.definition.description }}</p>
+      @let preview = draft.preview;
+      @for (parameter of draft.definition.parameters; track parameter.id) {
+        @let error = preview.kind === "invalid" ? preview.errors[parameter.id] : undefined;
+        @let fieldId = 'command-field-' + parameter.id;
+        <div>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>{{ parameter.label }}{{ parameter.required ? '' : ' (optional)' }}</mat-label>
+            @if (parameter.type === parameterType.Enumerated) {
+              <mat-select [id]="fieldId" [required]="parameter.required"
+                [aria-describedby]="error ? fieldId + '-error' : ''"
+                [value]="draft.values[parameter.id]"
+                (selectionChange)="commandService.setParameterValue(parameter.id, $event.value)">
+                @if (!parameter.required) {
+                  <mat-option>Not specified</mat-option>
+                }
+                @for (choice of parameter.choices; track choice.value) {
+                  <mat-option [value]="choice.value">{{ choice.label }}</mat-option>
+                }
+              </mat-select>
+            } @else if (parameter.type === parameterType.Boolean) {
+              <mat-select [id]="fieldId" [required]="parameter.required"
+                [aria-describedby]="error ? fieldId + '-error' : ''"
+                [value]="draft.values[parameter.id]"
+                (selectionChange)="commandService.setParameterValue(parameter.id, $event.value)">
+                @if (!parameter.required) {
+                  <mat-option>Not specified</mat-option>
+                }
+                <mat-option [value]="true">On</mat-option>
+                <mat-option [value]="false">Off</mat-option>
+              </mat-select>
+            } @else {
+              <!-- Keep raw input so invalid numbers cannot be silently normalized by the browser. -->
+              <input matInput [id]="fieldId" [required]="parameter.required"
+                [type]="parameter.sensitive ? 'password' : 'text'"
+                [attr.autocomplete]="parameter.sensitive ? 'off' : null"
+                [attr.inputmode]="parameter.type === parameterType.Integer ? 'numeric'
+                  : parameter.type === parameterType.Numeric ? 'decimal' : 'text'"
+                [attr.aria-invalid]="error ? 'true' : null"
+                [aria-describedby]="error ? fieldId + '-error' : ''"
+                [ngModel]="draft.values[parameter.id] ?? ''"
+                (ngModelChange)="commandService.setParameterValue(parameter.id, $event)" />
+            }
+            <mat-hint>{{ parameter.description }}</mat-hint>
+          </mat-form-field>
+          @if (error) {
+            <p class="field-error" [id]="fieldId + '-error'">{{ error }}</p>
+          }
+        </div>
+      }
+
+      <div aria-live="polite">
+        <strong>Command preview:</strong>
+        @switch (preview.kind) {
+          @case ("ready") { <code class="command-preview">{{ preview.command }}</code> }
+          @case ("redacted") {
+            <code class="command-preview">{{ preview.display }}</code>
+            <span> Credentials hidden.</span>
+          }
+          @case ("invalid") { <span> Complete or correct the fields above.</span> }
+          @case ("unsupported") { <span> {{ preview.reason }}</span> }
+        }
+      </div>
+      @if (draft.definition.safetyClass === safetyClass.RawPacket && preview.kind === "ready") {
+        <fieldset>
+          <legend>Review raw packet</legend>
+          <p>For safety, please confirm this command prior to transmission.</p>
+          <p>Target: {{ draft.definition.target }}</p>
+          <p><code class="command-preview">{{ preview.command }}</code></p>
+          <label>
+            <input #review type="checkbox" [checked]="commandService.rawPacketReviewed()"
+              (change)="commandService.confirmRawPacket(review.checked)" />
+            I reviewed this command and target.
+          </label>
+        </fieldset>
+      }
+      <div>
+        <button mat-flat-button type="button" [disabled]="!!commandService.executionDisabledReason()"
+          (click)="commandService.sendComposedCommand()">
+          {{ draft.definition.safetyClass === safetyClass.ReadOnly ? 'Read' : 'Send' }}
+        </button>
+        @if (commandService.executionDisabledReason(); as reason) {
+          <p>{{ reason }}</p>
+        }
+      </div>
+      <div role="status" aria-atomic="true">
+        @if (commandService.result(); as result) {
+          @if (result.status === "pending") {
+            <p>Waiting for station status…</p>
+          } @else if (result.status === "confirmed") {
+            <p>Firmware {{ result.identity.version }} · {{ result.identity.board }} ·
+              {{ result.identity.shield }} · build {{ result.identity.build }}</p>
+            <p>Identity reply: <code>{{ result.directResponse }}</code></p>
+            @if (result.broadcasts.length) {
+              <p>State messages observed during the query (may include unrelated updates):</p>
+              <ul>
+                @for (message of result.broadcasts; track $index) {
+                  <li><code>{{ message }}</code></li>
+                }
+              </ul>
+            }
+          } @else {
+            <p>{{ result.error }}</p>
+          }
+        }
+      </div>
+    }
+  </div>
+}

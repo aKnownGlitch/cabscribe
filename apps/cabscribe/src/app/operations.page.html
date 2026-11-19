@@ -1,74 +1,14 @@
 <div class="operations-page">
   <section class="page-content">
-    <mat-tab-group
-      [(selectedIndex)]="selectedTabIndex"
-      mat-align-tabs="start"
-      class="commands-tabs"
-    >
-      @for (tab of tabs; track trackByTabIndex($index)) {
-      <mat-tab [label]="tab.label">
-        <ng-template mat-tab-label>
-          <span>{{ tab.label }}</span>
-        </ng-template>
-
-        <div class="tab-content">
-          <div class="commands-container">
-            @if (categoryCommands().length === 0) {
-            <p class="empty-state">
-              No commands available for {{ selectedCategory() }}.
-            </p>
-            } @else {
-            <div class="command-selector-wrapper">
-              <label class="command-selector-label" [for]="'command-select-' + selectedTabIndex()">
-                Choose a command:
-              </label>
-              <select
-                [id]="'command-select-' + selectedTabIndex()"
-                class="command-selector"
-                (change)="selectCommand($event)"
-              >
-                <option value="">-- Select a command --</option>
-                @for (cmd of categoryCommands(); track trackByCommandId($index, cmd)) {
-                <option [value]="cmd.id">{{ cmd.displayName }}</option>
-                }
-              </select>
-            </div>
-
-            <div class="command-info">
-              @let composing = commandService.composing(); @if (composing) {
-              <div class="command-form-container">
-                <div class="command-syntax">
-                  <strong>Syntax:</strong>
-                  <code>{{ composing.definition.syntax }}</code>
-                </div>
-                <p class="command-description">
-                  {{ composing.definition.description }}
-                </p>
-
-                <!-- Phase 2: Render parameter form fields here -->
-                <div class="command-form">
-                  <p class="phase-0-placeholder">
-                    Command form rendering coming in Phase 2
-                  </p>
-                </div>
-
-                <div class="command-actions">
-                  <button
-                    type="button"
-                    class="send-button"
-                    disabled
-                    title="Phase 2: Command forms"
-                  >
-                    Send command
-                  </button>
-                </div>
-              </div>
-              }
-            </div>
+    <mat-tab-group [(selectedIndex)]="selectedTabIndex" mat-align-tabs="start" class="commands-tabs">
+      @for (tab of tabs; track tab.category) {
+        <mat-tab [label]="tab.label">
+          <div class="tab-content">
+            @if ($index === selectedTabIndex()) {
+              <app-command-form [category]="tab.category" />
             }
           </div>
-        </div>
-      </mat-tab>
+        </mat-tab>
       }
     </mat-tab-group>
   </section>

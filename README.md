@@ -12,11 +12,9 @@ Run CabScribe in your browser at **[https://cabscribe.com](https://cabscribe.com
 Connecting to a command station requires a browser that supports Web Serial,
 such as desktop Chrome or Edge.
 
-> **Project status: early development.** The user interface, shared CV session
-> state, and Electron serial-port connection shell are in place. DCC-EX CV
-> commands have not yet been implemented or verified with hardware. CV read and
-> write operations are intentionally unavailable; do not use this version to
-> program a decoder.
+> **Project status: early development.** Service Mode CV reads are implemented
+> but still require hardware verification. CV writes and live commands from
+> Extended Configuration and Operations are disabled.
 
 ## Planned features
 
@@ -57,8 +55,7 @@ open work.
 
 - Node.js 22 LTS and npm.
 - Linux x64 for the configured desktop package target.
-- A DCC-EX command station and compatible decoder for future hardware tests;
-  this project version does not yet issue CV commands.
+- A DCC-EX command station and compatible decoder for hardware testing.
 
 ### Install dependencies
 
@@ -73,8 +70,7 @@ npx nx serve cabscribe-desktop
 ```
 
 This builds the Angular renderer and launches the Electron application. The
-serial port can be enumerated and opened, but the app does not yet communicate
-with DCC-EX for CV operations.
+serial port can be enumerated and opened for Service Mode CV reads.
 
 To run the browser-based Angular UI with Web Serial:
 
@@ -95,20 +91,41 @@ on a saved Electron device path or matching ambiguous USB vendor/product IDs.
 Another application must not already be using the port. Production hosting
 requires HTTPS and must not block the `serial` Permissions Policy.
 
-Browser and Electron builds currently have the same CV limitation: DCC-EX CV
-commands are not implemented, so Read and Write remain disabled. Browser serial
-behavior is covered by mocked API tests; physical-device testing is still needed.
+Browser and Electron builds implement Service Mode CV reads in the CV editor
+and CV Table. CV writes remain disabled. Serial behavior is covered by mocked
+tests; physical-device testing is still needed.
 
 **Confirm** in Programming Target Address sends `<R LOCOID>` and compares the
 returned actual locomotive address with the entered ID. Place one locomotive
 alone on the programming track; decoder acknowledgment is required. This checks
-command-station and decoder communication without writing CVs or enabling Read
-and Write. Accessory address confirmation is unsupported. A mismatch is shown
+command-station and decoder communication without writing CVs or enabling
+writes. Accessory address confirmation is unsupported. A mismatch is shown
 explicitly; failed reads, invalid replies, transmission failures, or a 15-second
 timeout show errors and require reconnection before retrying. Editing the address
 clears the result. This command requires firmware supporting
 [`<R LOCOID>`](https://dcc-ex.com/reference/software/command-summary-consolidated.html#r-locoid-read-dcc-decoder-cab-address);
 hardware verification remains outstanding. Traffic appears in the serial debug log.
+
+### Extended Configuration and Operations
+
+Use the puzzle-piece button for **Extended Configuration** and the
+**Operations** button for layout controls. Use the arrow keys to move between
+tabs and Enter or Space to select one. Select a command to see its preview and
+any required inputs. Changing tabs or pages clears the command draft without
+disconnecting the station.
+
+| Commands | Web Serial | Electron | Hardware and firmware status |
+| --- | --- | --- | --- |
+| Station identity/status (`<s>`) | Preview only | Preview only | [USB bench probe](docs/extended-configuration-operations-plan.md#hardware-verification-record) passed on MEGA / EX8874 with DCC-EX 5.6.6; neither app adapter is approved for live execution |
+| Track list (`<=>`), turnout list (`<T>`), Service Mode CV read (`<R cv>`) on these pages | Preview only | Preview only | No live support approved; use the existing CV editor or CV Table for Service Mode reads |
+| MAIN track power (`<1 MAIN>`, `<0 MAIN>`) | Preview only | Preview only | Side effects not verified on hardware |
+| Node group and Wi-Fi station settings (`<C NODEGROUP …>`, `<C WIFI …>`) | Preview only | Preview only | DCC-EX 6.x network forms; no firmware build approved. Use sample credentials: both fields are masked and redacted from the preview |
+| MAIN raw packet (`<M 0 …>`) | Preview and review only | Preview and review only | Requires separate approval and hardware validation before enablement |
+
+Tabs with no catalog entries show an empty state. There are **no live commands
+enabled from these two pages** in either production adapter. The
+[command inventory](docs/dcc-ex-serial-commands.md) is a protocol reference,
+not a list of supported commands.
 
 ### Build and test
 

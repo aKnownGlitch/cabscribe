@@ -214,6 +214,11 @@ work with mocked command data.
 
 ### Phase 2 — Typed catalog and command forms
 
+- The initial catalog previews station identity/status (`<s>`), track-manager
+  state (`<=>`), turnout lists (`<T>`), and programming-track CV reads (`<R cv>`).
+  Syntax follows the source revision in the [command reference](./dcc-ex-serial-commands.md).
+  These pages do not transmit in Phase 2, even when connected; hardware
+  verification and serial execution are deferred to Phase 3.
 - Implement the initial reviewed command catalog with typed parameter
   definitions and capability/risk metadata.
 - Build the command selector and parameter form from catalog entries.
@@ -227,6 +232,16 @@ and unsupported/invalid inputs cannot reach the transport.
 
 ### Phase 3 — Safe query and low-impact operations
 
+- Station identity and status use the same read-only `<s>` request. The
+  identity reply supplies the firmware version; state frames observed for
+  200 ms after the identity reply are shown separately and are not treated as
+  a correlated or complete response.
+- In the current implementation, only a transport that explicitly reports
+  hardware-verified station status support can execute `<s>`. Neither
+  production adapter reports this capability yet. Track and turnout lists
+  and the new pages' CV reads remain preview-only; existing CV workflows
+  are unchanged. Before enabling an adapter, record the board, firmware
+  build, transport, and real-device reply and disconnect checks.
 - Implement a small, approved set of read-only status/list commands first.
 - Query the command-station version and show it in the UI. Use the reported
   version to identify the connected firmware; do not treat version detection
@@ -239,8 +254,27 @@ and unsupported/invalid inputs cannot reach the transport.
 **Exit criteria:** Read-only commands are hardware-verified and distinguish
 valid results from timeout, unsupported, malformed, and disconnected states.
 
+#### Hardware verification record
+
+- **2026-11-19, direct USB serial on macOS, 115200 baud:** One `<s>` query on
+  an isolated, unpowered layout returned
+  `<iDCC-EX V-5.6.6 / MEGA / EX8874 G-master-202609231425Z>`. Power-off
+  frames for A and B (`<p0 A>`, `<p0 B>`, `<p0>`) were observed both before
+  and after the identity reply. The probe closed the port normally.
+- This verifies the status reply on that hardware/firmware combination, not
+  the Web Serial or packaged Electron path. Physical unplug/reconnect
+  behavior was not tested. No state-changing or decoder commands were sent.
+  Leave live execution disabled until adapter verification is complete.
+
 ### Phase 4 — Configuration and state-changing operations
 
+- The preview-only subset covers MAIN track power on/off, network node group,
+  Wi-Fi station credentials, and raw packets on MAIN. Wi-Fi form inputs and
+  previews mask both credentials. Raw-packet review shows the exact bytes
+  and destination and clears confirmation when the draft changes.
+- Review does not enable transmission. State-changing commands still require
+  real-device verification and explicit outcome handling before enablement.
+  Raw-packet transmission also requires a separate review.
 - Add configuration changes and routine operational commands by risk class.
 - Add the agreed raw-packet confirmation and explicit outcome handling.
 - Add redaction for network credentials before exposing Wi-Fi commands.
@@ -252,6 +286,11 @@ tests verify the documented side effects.
 
 ### Phase 5 — Integration and release readiness
 
+- The [user guide and support matrix](../README.md#extended-configuration-and-operations)
+  distinguish preview-only entries from the existing Service Mode CV workflows.
+  Keep the live allowlist empty in production until hardware results are
+  recorded. Verify the packaged Linux build on the target distribution before
+  release; testing the shared renderer alone does not satisfy this gate.
 - Verify all supported command tabs, connection-mode gating, navigation, and
   shared shell behavior in web and Electron builds.
 - Test accessibility, keyboard use, responsive tab scrolling, and error

@@ -157,6 +157,9 @@ export interface CommandParameter {
    * Maximum string length for string parameters.
    */
   maxLength?: number;
+
+  /** Mask the input and omit its value from previews. */
+  sensitive?: boolean;
 }
 
 /**
@@ -179,7 +182,8 @@ export interface CommandDefinition {
   displayName: string;
 
   /**
-   * Full command syntax template with parameter placeholders.
+   * Full command syntax template with space-separated tokens. Placeholders
+   * occupy whole tokens; optional tokens may only be omitted at the end.
    * Example: "<= track {tracktype}>" or "<T {id} SERVO {vpin} {closedValue} {thrownValue}>"
    */
   syntax: string;
@@ -249,6 +253,9 @@ export interface CommandDefinition {
    */
   confirmationPolicy?: "explicit-form" | "raw-packet-only";
 
+  /** Human-readable destination shown during command review. */
+  target?: string;
+
   /**
    * Side effects or consequences of running this command.
    */
@@ -261,31 +268,34 @@ export interface CommandDefinition {
 }
 
 /**
- * Phase 0 implementation: Minimal set of verified read-only commands.
- * Before moving to Phase 1, review this list against the target firmware,
- * document hardware/version support, and verify responses in test.
- *
- * Early phases use only read-only commands; state-changing operations are
- * added in later phases with explicit hardware verification.
+ * Command catalog. Syntax follows the source revision in
+ * docs/dcc-ex-serial-commands.md. Hardware verification is pending.
  */
-export const COMMAND_DEFINITIONS: Record<string, CommandDefinition> = {
-  // Phase 0: Read-only status commands for discovery and verification
+const mainPacketParameters: CommandParameter[] = Array.from({ length: 15 }, (_, index) => ({
+  id: `d${index}`,
+  label: `Byte ${index + 1}`,
+  description: "Decimal byte value (0–255).",
+  type: ParameterType.Integer,
+  required: index < 2,
+  range: [0, 255],
+}));
 
+export const COMMAND_DEFINITIONS: Record<string, CommandDefinition> = {
   "version-query": {
     id: "version-query",
     category: "Configuration and diagnostics",
     displayName: "Query command-station version",
-    syntax: "<iS>",
+    syntax: "<s>",
     description:
-      "Query the DCC-EX command-station version. Used to identify the connected firmware and validate command support.",
+      "Request command-station identity and firmware version. This query also broadcasts layout state.",
     parameters: [],
     safetyClass: CommandSafetyClass.ReadOnly,
     connectionMode: CommandConnectionMode.Any,
     transportCapability: CommandTransportCapability.Any,
-    directResponse: "<iS PLATFORM VERSION BUILD FEATURES>",
+    directResponse: "<iDCC-EX V-VERSION / BOARD / SHIELD G-BUILD>",
     confirmationPolicy: "explicit-form",
     consequences:
-      "No side effects. Response identifies firmware version and available features.",
+      "Broadcasts current layout state without changing it.",
   },
 
   "status-query": {
@@ -294,22 +304,124 @@ export const COMMAND_DEFINITIONS: Record<string, CommandDefinition> = {
     displayName: "Query command-station status",
     syntax: "<s>",
     description:
-      "Query overall command-station status including power state and track configuration.",
+      "Query the command station and broadcast power, turnout, and sensor state.",
     parameters: [],
     safetyClass: CommandSafetyClass.ReadOnly,
     connectionMode: CommandConnectionMode.Any,
     transportCapability: CommandTransportCapability.Any,
-    directResponse:
-      "<p TRACK_NUMBER POWER_STATE> for each track, <> for end of list",
+    directResponse: "<iDCC-EX V-VERSION / BOARD / SHIELD G-BUILD>",
     confirmationPolicy: "explicit-form",
-    consequences: "No side effects. Displays current power and track states.",
+    consequences: "Broadcasts current layout state without changing it.",
+  },
+
+  "list-tracks": {
+    id: "list-tracks",
+    category: "Track power and track configuration",
+    displayName: "List track-manager state",
+    syntax: "<=>",
+    description: "List the configured tracks and their modes.",
+    parameters: [],
+    safetyClass: CommandSafetyClass.ReadOnly,
+    connectionMode: CommandConnectionMode.Any,
+    transportCapability: CommandTransportCapability.Any,
+  },
+
+  "list-turnouts": {
+    id: "list-turnouts",
+    category: "Turnouts, sensors, and outputs",
+    displayName: "List turnouts",
+    syntax: "<T>",
+    description: "List turnout definitions and states.",
+    parameters: [],
+    safetyClass: CommandSafetyClass.ReadOnly,
+    connectionMode: CommandConnectionMode.Any,
+    transportCapability: CommandTransportCapability.Any,
+  },
+
+  "main-power-on": {
+    id: "main-power-on",
+    category: "Track power and track configuration",
+    displayName: "Turn on MAIN track power",
+    syntax: "<1 MAIN>",
+    description: "Energizes the main track; locomotives may move.",
+    parameters: [],
+    safetyClass: CommandSafetyClass.RuntimeMutating,
+    connectionMode: CommandConnectionMode.Any,
+    transportCapability: CommandTransportCapability.Any,
+    timeoutBehavior: "uncertain",
+  },
+
+  "main-power-off": {
+    id: "main-power-off",
+    category: "Track power and track configuration",
+    displayName: "Turn off MAIN track power",
+    syntax: "<0 MAIN>",
+    description: "Cuts power to the main track.",
+    parameters: [],
+    safetyClass: CommandSafetyClass.RuntimeMutating,
+    connectionMode: CommandConnectionMode.Any,
+    transportCapability: CommandTransportCapability.Any,
+    timeoutBehavior: "uncertain",
+  },
+
+  "set-node-group": {
+    id: "set-node-group",
+    category: "Network configuration and diagnostics",
+    displayName: "Set network node group",
+    syntax: "<C NODEGROUP {group}>",
+    description: "Saves the node group in the command station's network preferences.",
+    parameters: [{
+      id: "group",
+      label: "Node group",
+      description: "Group number (1–254).",
+      type: ParameterType.Integer,
+      required: true,
+      range: [1, 254],
+    }],
+    safetyClass: CommandSafetyClass.Persistent,
+    connectionMode: CommandConnectionMode.Any,
+    transportCapability: CommandTransportCapability.FeatureDependent,
+    minVersion: "6.0.0",
+    timeoutBehavior: "uncertain",
+  },
+
+  "set-wifi-station": {
+    id: "set-wifi-station",
+    category: "Network configuration and diagnostics",
+    displayName: "Set Wi-Fi station credentials",
+    syntax: "<C WIFI {ssid} {password}>",
+    description: "Saves Wi-Fi credentials and reconfigures the command station's network connection. Use sample values for this preview.",
+    parameters: [
+      { id: "ssid", label: "Network name", description: "Wi-Fi network name (SSID).", type: ParameterType.String, required: true, sensitive: true },
+      { id: "password", label: "Password", description: "Wi-Fi network password.", type: ParameterType.String, required: true, sensitive: true },
+    ],
+    safetyClass: CommandSafetyClass.Persistent,
+    connectionMode: CommandConnectionMode.Any,
+    transportCapability: CommandTransportCapability.FeatureDependent,
+    minVersion: "6.0.0",
+    timeoutBehavior: "uncertain",
+  },
+
+  "raw-packet-main": {
+    id: "raw-packet-main",
+    category: "Consists, momentum, and raw packets",
+    displayName: "Review a raw DCC packet (MAIN)",
+    syntax: `<M 0 ${mainPacketParameters.map(({ id }) => `{${id}}`).join(" ")}>`,
+    description: "Compose a packet of 2–15 bytes for the main track. Raw packets can change decoder or locomotive behavior.",
+    parameters: mainPacketParameters,
+    safetyClass: CommandSafetyClass.RawPacket,
+    connectionMode: CommandConnectionMode.OpsMode,
+    transportCapability: CommandTransportCapability.FeatureDependent,
+    confirmationPolicy: "raw-packet-only",
+    target: "MAIN track",
+    timeoutBehavior: "uncertain",
   },
 
   "read-cv-service-mode": {
     id: "read-cv-service-mode",
     category: "Track power and track configuration",
     displayName: "Read a configuration variable (Service Mode)",
-    syntax: "<R CV CALLSIGN>",
+    syntax: "<R {cv}>",
     description:
       "Read a configuration variable (CV) in Service Mode. The decoder must be on the programming track.",
     parameters: [
@@ -321,20 +433,11 @@ export const COMMAND_DEFINITIONS: Record<string, CommandDefinition> = {
         required: true,
         range: [1, 1024],
       },
-      {
-        id: "callsign",
-        label: "Callsign (optional)",
-        description:
-          "Optional callsign identifier (up to 20 characters). Returned in the response.",
-        type: ParameterType.String,
-        required: false,
-        maxLength: 20,
-      },
     ],
     safetyClass: CommandSafetyClass.ReadOnly,
     connectionMode: CommandConnectionMode.ServiceMode,
     transportCapability: CommandTransportCapability.Any,
-    directResponse: "<r CV CALLSIGN VALUE>",
+    directResponse: "<v CV VALUE>",
     timeoutBehavior: "uncertain",
     confirmationPolicy: "explicit-form",
     consequences:
@@ -346,7 +449,9 @@ export const COMMAND_DEFINITIONS: Record<string, CommandDefinition> = {
  * Get a command definition by ID.
  */
 export function getCommandDefinition(id: string): CommandDefinition | undefined {
-  return COMMAND_DEFINITIONS[id];
+  return Object.prototype.hasOwnProperty.call(COMMAND_DEFINITIONS, id)
+    ? COMMAND_DEFINITIONS[id]
+    : undefined;
 }
 
 /**
