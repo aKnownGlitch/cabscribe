@@ -22,8 +22,8 @@
         type="button"
         aria-label="Single CV editor"
         title="Single CV editor"
-        [attr.aria-current]="!onDebugPage() && !onTablePage() ? 'page' : null"
-        [class.active]="!onDebugPage() && !onTablePage()"
+        [attr.aria-current]="!onDebugPage() && !onTablePage() && !onConfigurationPage() && !onOperationsPage() ? 'page' : null"
+        [class.active]="!onDebugPage() && !onTablePage() && !onConfigurationPage() && !onOperationsPage()"
       >
         <svg class="filled-icon" viewBox="0 0 24 24" aria-hidden="true">
           <path
@@ -43,6 +43,36 @@
         <svg class="filled-icon" viewBox="0 0 24 24" aria-hidden="true">
           <path
             d="M10 10.02h5V21h-5zM17 21h3c1.1 0 2-.9 2-2v-9h-5v11zm3-18H5c-1.1 0-2 .9-2 2v3h19V5c0-1.1-.9-2-2-2zM3 19c0 1.1.9 2 2 2h3V10H3v9z"
+          />
+        </svg>
+      </button>
+      <button
+        [routerLink]="['/', configurationPath]"
+        class="configuration-toggle-button"
+        type="button"
+        aria-label="Extended Configuration"
+        title="Extended Configuration"
+        [attr.aria-current]="onConfigurationPage() ? 'page' : null"
+        [class.active]="onConfigurationPage()"
+      >
+        <svg class="filled-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.16.24-.41.12-.64l-2-3.46c-.12-.22-.37-.29-.59-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.48 0-.59.22l-2 3.46c-.13.22-.07.47.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.16-.24.41-.12.64l2 3.46c.12.22.37.29.59.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.48 0 .59-.22l2-3.46c.12-.22.07-.47-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"
+          />
+        </svg>
+      </button>
+      <button
+        [routerLink]="['/', operationsPath]"
+        class="operations-toggle-button"
+        type="button"
+        aria-label="Operations"
+        title="Operations"
+        [attr.aria-current]="onOperationsPage() ? 'page' : null"
+        [class.active]="onOperationsPage()"
+      >
+        <svg class="filled-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"
           />
         </svg>
       </button>
@@ -85,7 +115,7 @@
       </div>
     </section>
 
-    @if (!onDebugPage()) {
+    @if (!onDebugPage() && !onConfigurationPage() && !onOperationsPage()) {
     <section
       class="operation-card address-card"
       aria-labelledby="target-address-title"
