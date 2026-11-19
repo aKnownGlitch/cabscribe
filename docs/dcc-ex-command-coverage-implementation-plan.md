@@ -8,9 +8,9 @@ commands executable from CabScribe on Web Serial and Electron. This follows the
 [original implementation plan](./extended-configuration-operations-plan.md);
 preserve the existing tabs, CV editor, CV Table, and shared serial session.
 
-The current catalog has ten entries, including two views of the same `<s>`
+The starting catalog had ten entries, including two views of the same `<s>`
 request. `DccCommandService` only dispatches station status and only on a
-connection that declares support. Neither production adapter does today.
+connection that declares support.
 The [USB bench result](./extended-configuration-operations-plan.md#hardware-verification-record)
 confirms an identity and power-state reply on MEGA / EX8874 with DCC-EX 5.6.6;
 it does not verify either app adapter, other commands, or newer firmware features.
@@ -31,8 +31,6 @@ resolve documentation and firmware disagreements before promotion.
 | --- | --- | --- |
 | Configuration / Power | Track modes/modifiers, DC modes, programming boost, global speed steps | Track IDs and mode keywords; conditional locomotive address for DC |
 | Configuration / Turnouts | Create and delete turnouts, sensors, outputs | Separate DCC linear and address/subaddress forms, VPIN and servo forms; positions, profile, pull-up, flags |
-| Configuration / JMRI | Roster update, delete and save | Locomotive ID, quoted name and function map |
-| Configuration / Turntables | Create DCC/EXTT turntables and add positions | Turntable ID, home angle, VPIN, position, value and angle |
 | Configuration / Network | Hostname, node group/mode, Ethernet, Wi-Fi modes and diagnostics | Quoted names, toggle keywords, sensitive SSID/password, optional AP channel |
 | Configuration / Diagnostics | NVS, RailCom, sniffer, ACK, analogue/servo/turntable tests, HAL, sensors, EXRAIL, development diagnostics | Integer vs. quoted NVS value; verified units and ranges for current/timing; optional profile and activity |
 | Operations / Throttle | Station capacity/status, stop, pause/resume, locomotive state, speed, functions and removal | Loco ID, signed speed, direction, function/state and frequency |
@@ -44,6 +42,10 @@ resolve documentation and firmware disagreements before promotion.
 | Operations / Consists | Consist list/create/remove, momentum, MAIN/PROG raw-packet review | Bounded lists of signed locomotive IDs or bytes; separate symmetric/asymmetric momentum forms |
 | Operations / Pins | Digital/PWM, NeoPixels, virtual displays, sound and SensorCam | Signed VPIN, profile and duration, RGB/count, quoted text, sound track/folder/volume/EQ, device-dependent options |
 | Operations / Automation | EXRAIL status/control, routes, tasks, reservations, latches, signals, block and LCC events | Route and optional loco, task/section/latch/signal/block/event IDs, distinct all/one variants |
+
+JMRI roster configuration and turntable setup are out of scope for CabScribe.
+The inventory still documents those firmware commands; the JMRI and Turntables
+tabs remain available on Operations only.
 
 Extend [the catalog](../libs/common/src/lib/dcc/command-definitions.ts) and
 [preview validation](../libs/common/src/lib/dcc/command-preview.ts) only as needed:
@@ -57,6 +59,13 @@ verify redaction for received echoes and diagnostics before enabling those forms
 
 **Exit:** Every variant is accounted for. Supported previews have exact byte
 fixtures and invalid cases; unresolved forms have a documented blocker.
+
+**First batch implemented:** 13 new read-only previews for capacity, turnout
+details, sensors, outputs, fast clock, roster, JMRI turnout and turntable
+queries, turntable status, and consists. The existing Service Mode CV preview
+is also available in Operations / Accessories without duplicating its schema.
+The new queries are Operations-only and are not on the execution allowlist.
+The rest of the coverage table remains backlog.
 
 ## 2. Execute one verified read-only slice end to end
 
@@ -89,6 +98,15 @@ Web Serial and Electron independently, including physical unplug/reconnect.
 Then add track, turnout and sensor lists and reconcile the programming-track
 read forms with the existing CV workflow before adding additional query families.
 Use a fixture and a real-device acceptance check for each newly enabled form.
+
+**Adapter implementation:** Station identity and status now share a dedicated,
+argument-free transport request. Electron uses a fixed IPC route, not a raw
+serial writer. Automated tests cover the Web Serial write and the Electron
+bridge, IPC handler, and serial drain with simulated devices. Web Serial and
+Electron now advertise support for this one read-only request so it can be
+tested in the app. Before marking either adapter hardware-verified, record the
+parsed identity, any independent broadcasts, and behavior after physical
+unplug and reconnect. The earlier direct USB probe does not satisfy this gate.
 
 **Exit:** Both adapters can exercise their approved read-only subset end to end;
 unapproved commands cannot reach serial, even if they can be previewed.

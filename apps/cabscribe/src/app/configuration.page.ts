@@ -18,8 +18,6 @@ export class ConfigurationPage {
   readonly tabs = [
     { label: "Power", category: "Track power and track configuration" },
     { label: "Turnouts", category: "Turnouts, sensors, and outputs" },
-    { label: "JMRI", category: "JMRI-compatible information and roster" },
-    { label: "Turntables", category: "Turntables" },
     { label: "Network", category: "Network configuration and diagnostics" },
     { label: "Diagnostics", category: "Configuration and diagnostics" },
   ];

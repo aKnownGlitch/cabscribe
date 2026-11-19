@@ -61,16 +61,6 @@ app-root {
   margin-left: auto;
 }
 
-.mode-chip {
-  padding: 7px 11px;
-  border: 1px solid #dbe9e8;
-  border-radius: 999px;
-  background: #f3f8f7;
-  color: #286965;
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .topbar-button {
   display: grid;
   width: 36px;
@@ -733,10 +723,6 @@ app-cv-table-page {
 
   .connection-actions {
     gap: 6px;
-  }
-
-  .mode-chip {
-    font-size: 11px;
   }
 
   .workspace {

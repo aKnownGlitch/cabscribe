@@ -45,6 +45,7 @@ describe('DccSessionService', () => {
         capabilities: { serviceModeRead: true, serviceModeWrite: true, stationStatus },
       }),
       sendRawCommand: vi.fn().mockResolvedValue(undefined),
+      requestStationStatus: vi.fn().mockResolvedValue(undefined),
       requestLocomotiveAddress: vi.fn().mockResolvedValue(undefined),
       onSerialMessage: (listener) => {
         publish = listener;
@@ -76,6 +77,7 @@ describe('DccSessionService', () => {
     expect(commands.result()).toBeNull();
     expect(await commands.sendComposedCommand()).toMatchObject({ status: 'unsupported' });
     expect(transport.sendRawCommand).not.toHaveBeenCalled();
+    expect(transport.requestStationStatus).not.toHaveBeenCalled();
   });
 
   it('does not send state-changing commands even on a connection approved for status reads', async () => {
@@ -102,6 +104,31 @@ describe('DccSessionService', () => {
     commands.setParameterValue('password', 'example password');
     expect(await commands.sendComposedCommand()).toMatchObject({ status: 'unsupported' });
     expect(transport.sendRawCommand).not.toHaveBeenCalled();
+    expect(transport.requestStationStatus).not.toHaveBeenCalled();
+  });
+
+  it('does not send new query forms on a connection approved only for station status', async () => {
+    const { transport } = await createConfirmableSession(true);
+    const commands = TestBed.inject(DccCommandService);
+    commands.startComposing('query-turnout-details');
+    commands.setParameterValue('id', '17');
+    expect(commands.composing()?.preview).toEqual({ kind: 'ready', command: '<T 17 X>' });
+    expect(await commands.sendComposedCommand()).toMatchObject({ status: 'unsupported' });
+    expect(transport.sendRawCommand).not.toHaveBeenCalled();
+    expect(transport.requestStationStatus).not.toHaveBeenCalled();
+  });
+
+  it('does not fall back to raw sending when the dedicated status request is missing', async () => {
+    const raw = vi.fn();
+    const { session } = await createSession({
+      connect: vi.fn().mockResolvedValue({
+        capabilities: { serviceModeRead: true, serviceModeWrite: false, stationStatus: true },
+      }),
+      sendRawCommand: raw,
+      onSerialMessage: () => vi.fn(),
+    });
+    await expect(session.readStationStatus()).rejects.toMatchObject({ code: 'unsupported' });
+    expect(raw).not.toHaveBeenCalled();
   });
 
   it('separates fragmented identity and status broadcasts, and holds the shared session lock', async () => {
@@ -126,7 +153,8 @@ describe('DccSessionService', () => {
         directResponse: '<iDCC-EX V-5.4.0 / MEGA / STANDARD G-abc123>',
         broadcasts: ['<p1 MAIN>', '<H 4 0>', '<Q 7>'],
       });
-      expect(transport.sendRawCommand).toHaveBeenCalledExactlyOnceWith('<s>');
+      expect(transport.requestStationStatus).toHaveBeenCalledExactlyOnceWith();
+      expect(transport.sendRawCommand).not.toHaveBeenCalled();
       expect(session.operationInProgress()).toBe(false);
     } finally {
       vi.useRealTimers();
@@ -152,7 +180,7 @@ describe('DccSessionService', () => {
     vi.useFakeTimers();
     try {
       const { session, transport, incoming } = await createConfirmableSession(true);
-      vi.mocked(transport.sendRawCommand!).mockImplementationOnce(() => new Promise(() => undefined));
+      vi.mocked(transport.requestStationStatus!).mockImplementationOnce(() => new Promise(() => undefined));
       const commands = TestBed.inject(DccCommandService);
       commands.startComposing('status-query');
       const query = commands.sendComposedCommand();
@@ -166,7 +194,7 @@ describe('DccSessionService', () => {
       commands.startComposing('status-query');
       expect(commands.executionDisabledReason()).toContain('Reconnect');
       expect(await commands.sendComposedCommand()).toMatchObject({ status: 'unsupported' });
-      expect(transport.sendRawCommand).toHaveBeenCalledOnce();
+      expect(transport.requestStationStatus).toHaveBeenCalledOnce();
     } finally {
       vi.useRealTimers();
     }
@@ -180,6 +208,7 @@ describe('DccSessionService', () => {
       commands.startComposing('list-tracks');
       expect(await commands.sendComposedCommand()).toMatchObject({ status: 'unsupported' });
       expect(transport.sendRawCommand).not.toHaveBeenCalled();
+      expect(transport.requestStationStatus).not.toHaveBeenCalled();
 
       commands.startComposing('status-query');
       const query = commands.sendComposedCommand();

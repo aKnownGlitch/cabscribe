@@ -1,10 +1,11 @@
-import { Component, computed, DestroyRef, inject, input } from "@angular/core";
+import { Component, computed, DestroyRef, inject, input, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { MatButtonModule } from "@angular/material/button";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
 import { MatSelectModule } from "@angular/material/select";
 import {
+  CommandPage,
   CommandSafetyClass,
   DccCommandService,
   getCommandsByCategory,
@@ -43,10 +44,12 @@ import {
 })
 export class CommandFormComponent {
   readonly category = input.required<string>();
+  readonly page = input.required<CommandPage>();
   protected readonly commandService = inject(DccCommandService);
-  protected readonly commands = computed(() => getCommandsByCategory(this.category()));
+  protected readonly commands = computed(() => getCommandsByCategory(this.category(), this.page()));
   protected readonly parameterType = ParameterType;
   protected readonly safetyClass = CommandSafetyClass;
+  protected readonly visiblePasswordField = signal<string | null>(null);
 
   constructor() {
     inject(DestroyRef).onDestroy(() => {
@@ -56,6 +59,7 @@ export class CommandFormComponent {
   }
 
   protected selectCommand(id: string): void {
+    this.visiblePasswordField.set(null);
     if (id) {
       this.commandService.startComposing(id);
     } else {

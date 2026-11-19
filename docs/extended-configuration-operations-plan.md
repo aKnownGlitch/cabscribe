@@ -77,10 +77,8 @@ Use scrollable tabs with short labels mapped to the command inventory areas:
 
 1. **Power** — Track power and track configuration
 2. **Turnouts** — Turnouts, sensors, and outputs
-3. **JMRI** — JMRI-compatible information and roster
-4. **Turntables** — Turntables
-5. **Network** — Network configuration and diagnostics
-6. **Diagnostics** — Configuration and diagnostics
+3. **Network** — Network configuration and diagnostics
+4. **Diagnostics** — Configuration and diagnostics
 
 ### Operations tabs
 
@@ -170,9 +168,10 @@ DCC-EX source revision and target firmware.
 - Never automatically retry a mutating command after timeout, disconnect, or
   an uncertain result. Explain when the user must inspect the layout or
   reconnect before trying again.
-- Keep passwords and other credentials masked in form controls and redact
-  them from debug output, errors, analytics, and any command preview that is
-  not explicitly user-reviewed. Keep credentials and command results in
+- Mask password fields by default and let users reveal them in the form. Show
+  the Wi-Fi network name in its input. Redact both fields from command previews
+  regardless of input visibility, and from debug output, errors, and analytics.
+  Keep credentials and command results in
   session memory only; do not persist them.
 - Validate inputs before transmission using verified command constraints.
   Reject invalid values explicitly; do not clamp, coerce, or substitute.
@@ -236,12 +235,11 @@ and unsupported/invalid inputs cannot reach the transport.
   identity reply supplies the firmware version; state frames observed for
   200 ms after the identity reply are shown separately and are not treated as
   a correlated or complete response.
-- In the current implementation, only a transport that explicitly reports
-  hardware-verified station status support can execute `<s>`. Neither
-  production adapter reports this capability yet. Track and turnout lists
-  and the new pages' CV reads remain preview-only; existing CV workflows
-  are unchanged. Before enabling an adapter, record the board, firmware
-  build, transport, and real-device reply and disconnect checks.
+- Only a transport that explicitly reports station status support can execute
+  `<s>`. Web Serial and Electron enable this request for app testing. Track and
+  turnout lists and the new pages' CV reads remain preview-only; existing CV
+  workflows are unchanged. Record the board, firmware build, transport, and
+  real-device reply and disconnect checks before marking an adapter verified.
 - Implement a small, approved set of read-only status/list commands first.
 - Query the command-station version and show it in the UI. Use the reported
   version to identify the connected firmware; do not treat version detection
@@ -264,7 +262,16 @@ valid results from timeout, unsupported, malformed, and disconnected states.
 - This verifies the status reply on that hardware/firmware combination, not
   the Web Serial or packaged Electron path. Physical unplug/reconnect
   behavior was not tested. No state-changing or decoder commands were sent.
-  Leave live execution disabled until adapter verification is complete.
+  This probe is not evidence that the app adapters are hardware-verified.
+- **2026-11-19, follow-up direct USB check at 115200 baud:** With the locomotive
+  isolated, sent only `<s>`, `<=>`, `<T>`, and `<Q>`. The station reported
+  the same identity, tracks A as MAIN and B as PROG, and power off on both
+  tracks. Startup and query traffic overlapped: track-list frames
+  `<= A MAIN>` and `<= B PROG>` arrived after the next write, and `<X>`
+  arrived during the final observation window. No turnout or sensor list was
+  verified; the rejection could not be attributed to a specific request.
+  The port closed normally. No throttle, power-control, or other
+  state-changing commands were sent. This was not an app adapter test.
 
 ### Phase 4 — Configuration and state-changing operations
 

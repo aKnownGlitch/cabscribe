@@ -158,9 +158,14 @@ export interface CommandParameter {
    */
   maxLength?: number;
 
-  /** Mask the input and omit its value from previews. */
+  /** Omit the value from previews. */
   sensitive?: boolean;
+
+  /** Mask the text field by default in the command form. */
+  maskInput?: boolean;
 }
+
+export type CommandPage = "configuration" | "operations";
 
 /**
  * Complete definition of a supported DCC-EX command.
@@ -175,6 +180,9 @@ export interface CommandDefinition {
    * Category within the page (e.g., "Track power and track configuration").
    */
   category: string;
+
+  /** Override category-only placement when inventory areas are shared. */
+  placements?: readonly { page: CommandPage; category: string }[];
 
   /**
    * Display name shown in command selector.
@@ -280,6 +288,32 @@ const mainPacketParameters: CommandParameter[] = Array.from({ length: 15 }, (_, 
   range: [0, 255],
 }));
 
+function operationQuery(
+  id: string,
+  category: string,
+  displayName: string,
+  syntax: string,
+  description: string,
+  parameters: CommandParameter[] = [],
+): CommandDefinition {
+  return {
+    id, category, displayName, syntax, description, parameters,
+    placements: [{ page: "operations", category }],
+    safetyClass: CommandSafetyClass.ReadOnly,
+    connectionMode: CommandConnectionMode.Any,
+    transportCapability: CommandTransportCapability.Any,
+  };
+}
+
+function queryId(id: string, label: string, description: string): CommandParameter {
+  return { id, label, description, type: ParameterType.Integer, required: true };
+}
+
+const turnoutId = queryId("id", "Turnout ID", "Enter the ID assigned to the turnout on the command station.");
+const turntableId = queryId("id", "Turntable ID", "Enter the ID assigned to the turntable on the command station.");
+const turnoutCategory = "Turnouts, sensors, and outputs";
+const jmriCategory = "JMRI-compatible information and roster";
+
 export const COMMAND_DEFINITIONS: Record<string, CommandDefinition> = {
   "version-query": {
     id: "version-query",
@@ -338,6 +372,34 @@ export const COMMAND_DEFINITIONS: Record<string, CommandDefinition> = {
     transportCapability: CommandTransportCapability.Any,
   },
 
+  "query-loco-capacity": operationQuery("query-loco-capacity", "Station and throttle",
+    "Query locomotive capacity", "<#>", "Report the number of locomotives the station can support simultaneously."),
+  "query-turnout-details": operationQuery("query-turnout-details", turnoutCategory,
+    "Query turnout details", "<T {id} X>", "Request the definition and state of one turnout.", [turnoutId]),
+  "list-sensors-q-format": operationQuery("list-sensors-q-format", turnoutCategory,
+    "List sensor states (<q> format)", "<S>", "Request sensor states in the lowercase q response format."),
+  "list-sensors-uppercase-q-format": operationQuery("list-sensors-uppercase-q-format", turnoutCategory,
+    "List sensor states (<Q> format)", "<Q>", "Request sensor states in the uppercase Q response format."),
+  "list-outputs": operationQuery("list-outputs", turnoutCategory,
+    "List outputs", "<Z>", "Request configured output definitions."),
+  "query-fast-clock": operationQuery("query-fast-clock", jmriCategory,
+    "Query fast clock", "<J C>", "Request the fast-clock time without changing it."),
+  "list-roster": operationQuery("list-roster", jmriCategory,
+    "List roster IDs", "<J R>", "Request the locomotive IDs in the roster."),
+  "query-roster-entry": operationQuery("query-roster-entry", jmriCategory,
+    "Query roster entry", "<J R {locoid}>", "Request the roster information for one locomotive.",
+    [queryId("locoid", "Locomotive ID", "Enter the locomotive ID used in the roster.")]),
+  "query-jmri-turnout": operationQuery("query-jmri-turnout", jmriCategory,
+    "Query turnout state and description", "<J T {id}>", "Request the JMRI information for one turnout.", [turnoutId]),
+  "query-jmri-turntable-positions": operationQuery("query-jmri-turntable-positions", jmriCategory,
+    "List turntable positions", "<J P {id}>", "Request the defined positions for one turntable.", [turntableId]),
+  "list-turntables": operationQuery("list-turntables", "Turntables",
+    "List turntables", "<I>", "Request the configured turntables and their states."),
+  "query-turntable": operationQuery("query-turntable", "Turntables",
+    "Query turntable state", "<I {id}>", "Request the type and current position of one turntable.", [turntableId]),
+  "list-consists": operationQuery("list-consists", "Consists, momentum, and raw packets",
+    "List consists", "<^>", "Request the consists known to the command station."),
+
   "main-power-on": {
     id: "main-power-on",
     category: "Track power and track configuration",
@@ -393,7 +455,7 @@ export const COMMAND_DEFINITIONS: Record<string, CommandDefinition> = {
     description: "Saves Wi-Fi credentials and reconfigures the command station's network connection. Use sample values for this preview.",
     parameters: [
       { id: "ssid", label: "Network name", description: "Wi-Fi network name (SSID).", type: ParameterType.String, required: true, sensitive: true },
-      { id: "password", label: "Password", description: "Wi-Fi network password.", type: ParameterType.String, required: true, sensitive: true },
+      { id: "password", label: "Password", description: "Wi-Fi network password.", type: ParameterType.String, required: true, sensitive: true, maskInput: true },
     ],
     safetyClass: CommandSafetyClass.Persistent,
     connectionMode: CommandConnectionMode.Any,
@@ -420,6 +482,11 @@ export const COMMAND_DEFINITIONS: Record<string, CommandDefinition> = {
   "read-cv-service-mode": {
     id: "read-cv-service-mode",
     category: "Track power and track configuration",
+    placements: [
+      { page: "configuration", category: "Track power and track configuration" },
+      { page: "operations", category: "Track power and track configuration" },
+      { page: "operations", category: "DCC accessory and programming commands" },
+    ],
     displayName: "Read a configuration variable (Service Mode)",
     syntax: "<R {cv}>",
     description:
@@ -464,9 +531,12 @@ export function getAllCommandDefinitions(): CommandDefinition[] {
 /**
  * Get commands by category.
  */
-export function getCommandsByCategory(category: string): CommandDefinition[] {
-  return Object.values(COMMAND_DEFINITIONS).filter(
-    (cmd) => cmd.category === category,
+export function getCommandsByCategory(category: string, page?: CommandPage): CommandDefinition[] {
+  return Object.values(COMMAND_DEFINITIONS).filter((command) =>
+    command.placements
+      ? command.placements.some((placement) =>
+          placement.category === category && (page === undefined || placement.page === page))
+      : command.category === category,
   );
 }
 

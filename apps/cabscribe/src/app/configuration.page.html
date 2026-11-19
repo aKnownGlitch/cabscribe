@@ -5,7 +5,7 @@
         <mat-tab [label]="tab.label">
           <div class="tab-content">
             @if ($index === selectedTabIndex()) {
-              <app-command-form [category]="tab.category" />
+              <app-command-form page="configuration" [category]="tab.category" />
             }
           </div>
         </mat-tab>

@@ -27,6 +27,25 @@ function reportSerialMessage(direction, message) {
   });
 }
 
+function writeSerialCommand(port, command, label) {
+  return new Promise((resolve, reject) => {
+    port.write(command, (error) => {
+      if (error) {
+        reject(new Error(`${label} could not be sent: ${error.message}`));
+        return;
+      }
+      port.drain((drainError) => {
+        if (drainError) {
+          reject(new Error(`${label} transmission failed: ${drainError.message}`));
+        } else {
+          reportSerialMessage("outgoing", command);
+          resolve();
+        }
+      });
+    });
+  });
+}
+
 ipcMain.handle("cabscribe:serial:list", async () => {
   const ports = await SerialPort.list();
   return ports.map((port) => ({
@@ -70,7 +89,9 @@ ipcMain.handle("cabscribe:serial:connect", async (_event, portId) => {
 
   activePort = port;
   port.on("data", (data) => {
-    reportSerialMessage("incoming", data.toString("utf8"));
+    if (activePort === port) {
+      reportSerialMessage("incoming", data.toString("utf8"));
+    }
   });
   port.on("error", (error) => {
     notifyUnexpectedDisconnect(
@@ -96,6 +117,7 @@ ipcMain.handle("cabscribe:serial:connect", async (_event, portId) => {
     capabilities: {
       serviceModeRead: true,
       serviceModeWrite: false,
+      stationStatus: true,
     },
     message:
       "The serial port is open at 115200 baud. CV writing is not enabled yet.",
@@ -128,25 +150,7 @@ ipcMain.handle("cabscribe:dcc:read-cv", async (_event, cv) => {
   if (!port?.isOpen) {
     throw new Error("Connect to a command station before reading a CV.");
   }
-  const command = `<R ${cv}>`;
-  await new Promise((resolve, reject) => {
-    port.write(command, (error) => {
-      if (error) {
-        reject(new Error(`CV read could not be sent: ${error.message}`));
-        return;
-      }
-      port.drain((drainError) => {
-        if (drainError) {
-          reject(
-            new Error(`CV read transmission failed: ${drainError.message}`),
-          );
-        } else {
-          reportSerialMessage("outgoing", command);
-          resolve();
-        }
-      });
-    });
-  });
+  await writeSerialCommand(port, `<R ${cv}>`, "CV read");
 });
 
 ipcMain.handle("cabscribe:dcc:read-address", async () => {
@@ -156,26 +160,22 @@ ipcMain.handle("cabscribe:dcc:read-address", async () => {
       "Connect to a command station before confirming an address.",
     );
   }
-  await new Promise((resolve, reject) => {
-    port.write("<R LOCOID>", (error) => {
-      if (error) {
-        reject(new Error(`Address read could not be sent: ${error.message}`));
-        return;
-      }
-      port.drain((drainError) => {
-        if (drainError) {
-          reject(
-            new Error(
-              `Address read transmission failed: ${drainError.message}`,
-            ),
-          );
-        } else {
-          reportSerialMessage("outgoing", "<R LOCOID>");
-          resolve();
-        }
-      });
-    });
-  });
+  await writeSerialCommand(port, "<R LOCOID>", "Address read");
+});
+
+ipcMain.handle("cabscribe:dcc:station-status", async (event, ...args) => {
+  const contents = mainWindow?.webContents;
+  if (!contents || event.sender !== contents || event.senderFrame !== contents.mainFrame) {
+    throw new Error("Station status can only be requested by the app window.");
+  }
+  if (args.length !== 0) {
+    throw new Error("Station status does not accept arguments.");
+  }
+  const port = activePort;
+  if (!port?.isOpen) {
+    throw new Error("Connect to a command station before reading its status.");
+  }
+  await writeSerialCommand(port, "<s>", "Station status query");
 });
 
 ipcMain.handle("cabscribe:dcc:write-cv", async (_event, address, cv, value) => {

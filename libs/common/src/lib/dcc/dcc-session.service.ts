@@ -455,8 +455,8 @@ export class DccSessionService {
     if (connection.status !== 'connected') {
       return new DccTransportError('not-connected', 'Connect to a command station before reading its status.');
     }
-    if (!connection.capabilities.stationStatus || !this.transport.sendRawCommand || !this.transport.onSerialMessage) {
-      return new DccTransportError('unsupported', 'Status reads are not hardware-verified for this connection. Preview only.');
+    if (!connection.capabilities.stationStatus || !this.transport.requestStationStatus || !this.transport.onSerialMessage) {
+      return new DccTransportError('unsupported', 'This connection does not support station status reads. Preview only.');
     }
     if (this.stationStatusNeedsReconnect()) {
       return new DccTransportError('unsupported', 'Reconnect before retrying so a delayed reply cannot be mistaken for a new one.');
@@ -505,7 +505,7 @@ export class DccSessionService {
     });
     try {
       const write = async () => {
-        await this.transport.sendRawCommand!('<s>');
+        await this.transport.requestStationStatus!();
         finishWrite?.();
       };
       const [status] = await Promise.all([response, write()]);

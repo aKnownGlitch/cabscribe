@@ -19,6 +19,7 @@
       @for (parameter of draft.definition.parameters; track parameter.id) {
         @let error = preview.kind === "invalid" ? preview.errors[parameter.id] : undefined;
         @let fieldId = 'command-field-' + parameter.id;
+        @let passwordVisible = visiblePasswordField() === fieldId;
         <div>
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>{{ parameter.label }}{{ parameter.required ? '' : ' (optional)' }}</mat-label>
@@ -48,7 +49,7 @@
             } @else {
               <!-- Keep raw input so invalid numbers cannot be silently normalized by the browser. -->
               <input matInput [id]="fieldId" [required]="parameter.required"
-                [type]="parameter.sensitive ? 'password' : 'text'"
+                [type]="parameter.maskInput && !passwordVisible ? 'password' : 'text'"
                 [attr.autocomplete]="parameter.sensitive ? 'off' : null"
                 [attr.inputmode]="parameter.type === parameterType.Integer ? 'numeric'
                   : parameter.type === parameterType.Numeric ? 'decimal' : 'text'"
@@ -56,6 +57,22 @@
                 [aria-describedby]="error ? fieldId + '-error' : ''"
                 [ngModel]="draft.values[parameter.id] ?? ''"
                 (ngModelChange)="commandService.setParameterValue(parameter.id, $event)" />
+            }
+            @if (parameter.maskInput) {
+              <button mat-icon-button matIconSuffix type="button" [attr.aria-controls]="fieldId"
+                [attr.aria-label]="passwordVisible ? 'Hide password' : 'Show password'"
+                (click)="visiblePasswordField.set(passwordVisible ? null : fieldId)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+                  stroke-linejoin="round" aria-hidden="true" focusable="false">
+                  @if (passwordVisible) {
+                    <path d="M4 4l16 16M3 12c.9-1.6 2-2.9 3.3-3.8M3 12c2.4 4.1 5.4 6 9 6 1.3 0 2.5-.3 3.6-.8M10 6.2c.7-.1 1.3-.2 2-.2 3.6 0 6.6 1.9 9 6-.6 1-1.3 1.9-2 2.7" />
+                  } @else {
+                    <path d="M3 12c2.4-4.1 5.4-6 9-6s6.6 1.9 9 6c-2.4 4.1-5.4 6-9 6s-6.6-1.9-9-6Z" />
+                    <circle cx="12" cy="12" r="2.5" />
+                  }
+                </svg>
+              </button>
             }
             <mat-hint>{{ parameter.description }}</mat-hint>
           </mat-form-field>
@@ -91,12 +108,15 @@
         </fieldset>
       }
       <div>
-        <button mat-flat-button type="button" [disabled]="!!commandService.executionDisabledReason()"
+        @let isRead = draft.definition.safetyClass === safetyClass.ReadOnly;
+        @let disabledReason = commandService.executionDisabledReason();
+        <button mat-flat-button type="button" [class.read-button]="isRead && !disabledReason"
+          [disabled]="!!disabledReason"
           (click)="commandService.sendComposedCommand()">
-          {{ draft.definition.safetyClass === safetyClass.ReadOnly ? 'Read' : 'Send' }}
+          {{ isRead ? 'Read' : 'Send' }}
         </button>
-        @if (commandService.executionDisabledReason(); as reason) {
-          <p>{{ reason }}</p>
+        @if (disabledReason) {
+          <p>{{ disabledReason }}</p>
         }
       </div>
       <div role="status" aria-atomic="true">

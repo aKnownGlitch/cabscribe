@@ -116,14 +116,18 @@ disconnecting the station.
 
 | Commands | Web Serial | Electron | Hardware and firmware status |
 | --- | --- | --- | --- |
-| Station identity/status (`<s>`) | Preview only | Preview only | [USB bench probe](docs/extended-configuration-operations-plan.md#hardware-verification-record) passed on MEGA / EX8874 with DCC-EX 5.6.6; neither app adapter is approved for live execution |
+| Station identity/status (`<s>`) | Read enabled for testing | Read enabled for testing | The [direct USB bench probe](docs/extended-configuration-operations-plan.md#hardware-verification-record) passed on MEGA / EX8874 with DCC-EX 5.6.6; real-device verification through both app adapters is pending |
 | Track list (`<=>`), turnout list (`<T>`), Service Mode CV read (`<R cv>`) on these pages | Preview only | Preview only | No live support approved; use the existing CV editor or CV Table for Service Mode reads |
+| Locomotive capacity, turnout details, sensor/output lists, JMRI clock/roster/turnout/turntable queries, turntable status, and consist list | Preview only | Preview only | Syntax checked against the pinned source; response and adapter verification pending |
 | MAIN track power (`<1 MAIN>`, `<0 MAIN>`) | Preview only | Preview only | Side effects not verified on hardware |
-| Node group and Wi-Fi station settings (`<C NODEGROUP …>`, `<C WIFI …>`) | Preview only | Preview only | DCC-EX 6.x network forms; no firmware build approved. Use sample credentials: both fields are masked and redacted from the preview |
+| Node group and Wi-Fi station settings (`<C NODEGROUP …>`, `<C WIFI …>`) | Preview only | Preview only | DCC-EX 6.x network forms; no firmware build approved. Use sample credentials: the network name is visible in its input, the password is hidden by default with a trailing eye icon to toggle visibility, and both are redacted from the preview |
 | MAIN raw packet (`<M 0 …>`) | Preview and review only | Preview and review only | Requires separate approval and hardware validation before enablement |
 
-Tabs with no catalog entries show an empty state. There are **no live commands
-enabled from these two pages** in either production adapter. The
+To test the read-only request, connect to the command station and select
+**Extended Configuration → Diagnostics → Query command-station version → Read**.
+The same request is available under **Operations → Throttle → Query command-station
+status**; it does not send a throttle command. All other commands on these
+pages remain preview-only. Tabs with no catalog entries show an empty state. The
 [command inventory](docs/dcc-ex-serial-commands.md) is a protocol reference,
 not a list of supported commands.
 

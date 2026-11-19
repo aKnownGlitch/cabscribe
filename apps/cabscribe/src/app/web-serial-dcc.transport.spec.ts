@@ -153,6 +153,31 @@ describe("WebSerialDccTransport", () => {
     await transport.disconnect();
   });
 
+  it("writes exactly the station status query on a supported connection", async () => {
+    const { transport, port, write } = createTransport();
+    await expect(transport.requestStationStatus()).rejects.toMatchObject({
+      code: "not-connected",
+    });
+    const [info] = await transport.listPorts();
+    const connection = await transport.connect(info.id);
+    expect(connection.capabilities.stationStatus).toBe(true);
+    await transport.requestStationStatus();
+    expect(write).toHaveBeenCalledOnce();
+    expect(write.mock.calls[0][0]).toEqual(new TextEncoder().encode("<s>"));
+    expect(port.writable?.locked).toBe(false);
+    await transport.disconnect();
+  });
+
+  it("does not enable station status on a port without a writable stream", async () => {
+    const { port, serial } = createTransport();
+    serial.getPorts.mockResolvedValueOnce([{ ...port, writable: null }]);
+    const transport = new WebSerialDccTransport(serial);
+    const [info] = await transport.listPorts();
+    const connection = await transport.connect(info.id);
+    expect(connection.capabilities.stationStatus).toBe(false);
+    await transport.disconnect();
+  });
+
   it("lists authorized ports and retains their identity within a session", async () => {
     const { transport, serial } = createTransport();
     const ports = await transport.listPorts();
@@ -173,6 +198,7 @@ describe("WebSerialDccTransport", () => {
     expect(connection.capabilities).toEqual({
       serviceModeRead: true,
       serviceModeWrite: false,
+      stationStatus: true,
     });
     controller.enqueue(new TextEncoder().encode("<iDCC-EX>"));
     await vi.waitFor(() =>
@@ -295,6 +321,33 @@ describe("WebSerialDccTransport", () => {
     expect(bridge.requestLocomotiveAddress).toHaveBeenCalledOnce();
     expect(bridge.readCv).not.toHaveBeenCalled();
     expect(bridge.writeCv).not.toHaveBeenCalled();
+  });
+
+  it("routes station status only through the dedicated Electron bridge method", async () => {
+    const bridge = {
+      requestStationStatus: vi.fn().mockResolvedValue(undefined),
+      requestLocomotiveAddress: vi.fn(),
+      listPorts: vi.fn(),
+      connect: vi.fn().mockResolvedValue({
+        capabilities: { serviceModeRead: true, serviceModeWrite: false, stationStatus: true },
+      }),
+      disconnect: vi.fn(),
+      readCv: vi.fn(),
+      writeCv: vi.fn(),
+      sendRawCommand: vi.fn(),
+      onDisconnected: vi.fn(),
+      onSerialMessage: vi.fn(),
+    };
+    const transport = new ElectronDccTransport(bridge);
+    expect((await transport.connect("test")).capabilities.stationStatus).toBe(true);
+    await transport.requestStationStatus();
+    expect(bridge.requestStationStatus).toHaveBeenCalledExactlyOnceWith();
+    expect(bridge.sendRawCommand).not.toHaveBeenCalled();
+
+    const legacy = new ElectronDccTransport({ ...bridge, requestStationStatus: undefined });
+    expect((await legacy.connect("test")).capabilities.stationStatus).toBe(false);
+    await expect(legacy.requestStationStatus()).rejects.toMatchObject({ code: "unsupported" });
+    expect(bridge.sendRawCommand).not.toHaveBeenCalled();
   });
 
   it("reads a CV through the Electron bridge and matches its serial response", async () => {

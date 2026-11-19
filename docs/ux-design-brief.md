@@ -30,12 +30,11 @@ controls, or firmware workflows.
 
 ## 3. Primary user flow
 
-1. Launch CabScribe and see a **Disconnected** status in the header.
-2. Open serial connection settings with the adjacent icon button.
+1. Launch CabScribe.
+2. Use the serial connection dialog, which can also be opened from the app bar.
 3. Choose an available serial port and connect to the DCC-EX command station.
    The selected port is remembered in local storage for the next session.
-4. See the header change to **Service Mode** after the serial connection opens,
-   and a clear connected/ready state in the main screen.
+4. Check the connection status in serial connection settings.
 5. Enter a locomotive or accessory ID in the **Programming Target Address** section above the CV
    editor; this is the target for the programming operation.
 6. Enter one CV address and press **Read**; on success, the returned value
@@ -100,9 +99,7 @@ one primary application screen rather than separate pages.
 
 ### B. Main programming screen — connecting/connected
 
-- Show connection state in the header status chip (**Service Mode** when
-  connected).
-- Keep connected device/port identity and disconnect action in the serial
+- Keep connection status, connected device/port identity, and disconnect action in the serial
   connection settings dialog, not in a main-screen hardware panel.
 - Programming context identified as **Service Mode**.
 - One shared single-CV form with CV address and Value fields and **Read** and

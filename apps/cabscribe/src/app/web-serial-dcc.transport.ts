@@ -86,7 +86,11 @@ export class WebSerialDccTransport implements DccTransport {
     this.cvReader.reset();
     this.readTask = this.readSerial(port);
     return {
-      capabilities: { serviceModeRead: true, serviceModeWrite: false },
+      capabilities: {
+        serviceModeRead: true,
+        serviceModeWrite: false,
+        stationStatus: Boolean(port.readable && port.writable),
+      },
       message:
         "The serial port is open at 115200 baud. CV writing is not enabled yet.",
     };
@@ -155,6 +159,10 @@ export class WebSerialDccTransport implements DccTransport {
       "unsupported",
       "DCC-EX Service Mode CV writing is not implemented; no command was sent.",
     );
+  }
+
+  requestStationStatus(): Promise<void> {
+    return this.sendRawCommand("<s>");
   }
 
   async sendRawCommand(command: string): Promise<void> {

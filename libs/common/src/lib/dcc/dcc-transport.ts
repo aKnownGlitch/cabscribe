@@ -9,7 +9,7 @@ export interface DccConnectionInfo {
   capabilities: {
     serviceModeRead: boolean;
     serviceModeWrite: boolean;
-    /** Set only for a hardware-verified DCC-EX status-query connection. */
+    /** The connection can send the dedicated read-only DCC-EX status request. */
     stationStatus?: boolean;
   };
   message?: string;
@@ -44,6 +44,7 @@ export class DccTransportError extends Error {
 
 export interface DccTransport {
   requestLocomotiveAddress?(): Promise<void>;
+  requestStationStatus?(): Promise<void>;
   requestPort?(): Promise<SerialPortInfo | null>;
   listPorts(): Promise<SerialPortInfo[]>;
   connect(portId: string): Promise<DccConnectionInfo>;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COMMAND_DEFINITIONS, ParameterType } from "./command-definitions";
+import { COMMAND_DEFINITIONS, getCommandsByCategory, ParameterType } from "./command-definitions";
 import { previewCommand } from "./command-preview";
 
 const readCv = COMMAND_DEFINITIONS["read-cv-service-mode"];
@@ -17,6 +17,40 @@ const example = {
 const values = { mode: "MAIN", ratio: "0.50", enabled: false };
 
 describe("DCC command previews", () => {
+  it.each([
+    ["query-loco-capacity", {}, "<#>"],
+    ["query-turnout-details", { id: "17" }, "<T 17 X>"],
+    ["list-sensors-q-format", {}, "<S>"],
+    ["list-sensors-uppercase-q-format", {}, "<Q>"],
+    ["list-outputs", {}, "<Z>"],
+    ["query-fast-clock", {}, "<J C>"],
+    ["list-roster", {}, "<J R>"],
+    ["query-roster-entry", { locoid: "42" }, "<J R 42>"],
+    ["query-jmri-turnout", { id: "17" }, "<J T 17>"],
+    ["query-jmri-turntable-positions", { id: "5" }, "<J P 5>"],
+    ["list-turntables", {}, "<I>"],
+    ["query-turntable", { id: "5" }, "<I 5>"],
+    ["list-consists", {}, "<^>"],
+  ] as const)("previews %s with exact protocol syntax", (id, fields, command) => {
+    expect(previewCommand(COMMAND_DEFINITIONS[id], fields)).toEqual({ kind: "ready", command });
+  });
+
+  it("requires a whole turnout ID before previewing turnout details", () => {
+    const definition = COMMAND_DEFINITIONS["query-turnout-details"];
+    expect(previewCommand(definition, {})).toMatchObject({ kind: "invalid", errors: { id: "Required" } });
+    expect(previewCommand(definition, { id: "17.5" })).toMatchObject({ kind: "invalid", errors: { id: "Enter a whole number" } });
+  });
+
+  it("keeps new operational queries off Configuration and shares the existing CV form", () => {
+    const category = "Turnouts, sensors, and outputs";
+    expect(getCommandsByCategory(category, "operations").map(({ id }) => id))
+      .toContain("query-turnout-details");
+    expect(getCommandsByCategory(category, "configuration").map(({ id }) => id))
+      .not.toContain("query-turnout-details");
+    expect(getCommandsByCategory("DCC accessory and programming commands", "operations")).toContain(readCv);
+    expect(getCommandsByCategory("Track power and track configuration", "configuration")).toContain(readCv);
+  });
+
   it("serializes literal commands and both valid CV bounds exactly", () => {
     expect(previewCommand(COMMAND_DEFINITIONS["status-query"], {})).toEqual({ kind: "ready", command: "<s>" });
     for (const cv of [1, 1024]) {
