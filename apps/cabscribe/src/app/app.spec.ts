@@ -1,4 +1,7 @@
 import { TestBed, ComponentFixture } from "@angular/core/testing";
+import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
+import { MatSelectHarness } from "@angular/material/select/testing";
+import { MatTabGroupHarness } from "@angular/material/tabs/testing";
 import { By } from "@angular/platform-browser";
 import { provideRouter, Router } from "@angular/router";
 import { App } from "./app";
@@ -9,6 +12,7 @@ import {
   CvScanService,
   DCC_TRANSPORT,
   DccSessionService,
+  SerialLogMessage,
   UnavailableDccTransport,
 } from "common";
 
@@ -130,9 +134,7 @@ describe("App", () => {
         "Serial communication is not configured",
       );
     });
-    expect(compiled.querySelector(".mode-chip")?.textContent).toContain(
-      "Disconnected",
-    );
+    expect(compiled.querySelector("header")?.textContent).not.toContain("Disconnected");
     expect(
       compiled
         .querySelector<HTMLButtonElement>(".connection-settings-button")
@@ -208,7 +210,7 @@ describe("App", () => {
     ).toBe(true);
   });
 
-  it("shows Service Mode after the selected serial port connects", async () => {
+  it("connects the selected serial port without showing a mode chip in the app bar", async () => {
     const transport = {
       listPorts: vi
         .fn()
@@ -242,9 +244,8 @@ describe("App", () => {
 
     expect(transport.connect).toHaveBeenCalledWith("/dev/ttyUSB0");
     expect(closeDialog).toHaveBeenCalledOnce();
-    expect(
-      fixture.nativeElement.querySelector(".mode-chip")?.textContent,
-    ).toContain("Service Mode");
+    expect(fixture.componentInstance.isConnected()).toBe(true);
+    expect(fixture.nativeElement.querySelector("header")?.textContent).not.toContain("Service Mode");
   });
 
   it("confirms from the target section, shows errors and clears the result when the address changes", async () => {
@@ -400,9 +401,7 @@ describe("App", () => {
     expect(secondFixture.componentInstance.selectedPortId()).toBe(
       "/dev/ttyUSB0",
     );
-    expect(
-      secondFixture.nativeElement.querySelector(".mode-chip")?.textContent,
-    ).toContain("Disconnected");
+    expect(secondFixture.componentInstance.isConnected()).toBe(false);
     expect(transport.connect).not.toHaveBeenCalled();
   });
 
@@ -465,7 +464,11 @@ describe("App", () => {
     Object.defineProperty(writeDialog, "close", {
       value: closeWriteDialog,
     });
-    editor.requestWrite();
+    fixture.detectChanges();
+    const sendButton = (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>(".operation-button.write-button")!;
+    expect(sendButton.textContent?.trim()).toBe("Send");
+    sendButton.click();
 
     expect(showWriteDialog).toHaveBeenCalledOnce();
     expect(editor.pendingWrite()).toEqual({
@@ -707,9 +710,22 @@ describe("App", () => {
     );
   });
 
-  it("navigates between the editor, CV table, and debug pages from the header", async () => {
+  it("navigates between all five pages from the header without losing the serial session", async () => {
+    const transport = {
+      listPorts: vi.fn().mockResolvedValue([{ id: "test", label: "DCC-EX" }]),
+      connect: vi.fn().mockResolvedValue({
+        capabilities: { serviceModeRead: true, serviceModeWrite: false },
+      }),
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      readCv: vi.fn(),
+      writeCv: vi.fn(),
+    };
+    TestBed.overrideProvider(DCC_TRANSPORT, { useValue: transport });
     const fixture = TestBed.createComponent(App);
     await showEditor(fixture);
+    const app = fixture.componentInstance;
+    await app.session.connect("test");
+    app.updateTargetAddress(3);
     const element = fixture.nativeElement as HTMLElement;
     const tableButton = element.querySelector<HTMLButtonElement>(
       ".table-toggle-button",
@@ -720,8 +736,12 @@ describe("App", () => {
     const debugButton = element.querySelector<HTMLButtonElement>(
       ".debug-toggle-button",
     );
-    expect(editorButton?.nextElementSibling).toBe(tableButton);
-    expect(tableButton?.nextElementSibling).toBe(debugButton);
+    const configurationButton = element.querySelector<HTMLButtonElement>(
+      'button[aria-label="Extended Configuration"]',
+    );
+    const operationsButton = element.querySelector<HTMLButtonElement>(
+      'button[aria-label="Operations"]',
+    );
     expect(editorButton?.getAttribute("aria-label")).toBe("Single CV editor");
     expect(editorButton?.getAttribute("aria-current")).toBe("page");
     expect(tableButton?.getAttribute("aria-label")).toBe("Read CV table");
@@ -732,6 +752,48 @@ describe("App", () => {
     expect(element.querySelector("app-cv-table-page")).not.toBeNull();
     expect(tableButton?.getAttribute("aria-current")).toBe("page");
     expect(element.querySelector(".scan-button")).not.toBeNull();
+    for (const [button, routeComponent] of [
+      [configurationButton, "app-configuration"],
+      [operationsButton, "app-operations"],
+    ] as const) {
+      button?.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(element.querySelector(routeComponent)).not.toBeNull();
+      expect(element.querySelector(".address-card")).toBeNull();
+      expect(element.querySelectorAll('header [aria-current="page"]')).toHaveLength(1);
+      expect(button?.getAttribute("aria-current")).toBe("page");
+      const tabLabels = Array.from(
+        element.querySelectorAll(`${routeComponent} [role="tab"]`),
+        (tab) => tab.textContent?.trim(),
+      );
+      if (routeComponent === "app-configuration") {
+        expect(tabLabels).toEqual(["Power", "Turnouts", "Network", "Diagnostics"]);
+      } else {
+        expect(tabLabels).toEqual(["Throttle", "Track", "Turnouts", "JMRI", "Turntables", "Consists"]);
+      }
+    }
+    const loader = TestbedHarnessEnvironment.loader(fixture);
+    const operationsTabs = await loader.getHarness(MatTabGroupHarness);
+    await operationsTabs.selectTab({ label: "Turnouts" });
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(element.querySelector("app-operations mat-select")).not.toBeNull();
+    });
+    const commandPicker = await loader.getHarness(MatSelectHarness.with({
+      ancestor: "app-operations",
+    }));
+    await commandPicker.clickOptions({ text: "Query turnout details" });
+    const turnoutId = element.querySelector<HTMLInputElement>("#command-field-id")!;
+    expect(turnoutId.required).toBe(true);
+    turnoutId.value = "17";
+    turnoutId.dispatchEvent(new Event("input"));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.querySelector(".command-preview")?.textContent).toBe("<T 17 X>");
+    expect(
+      element.querySelector<HTMLButtonElement>('app-command-form button[type="button"]')?.disabled,
+    ).toBe(true);
     debugButton?.click();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -745,5 +807,129 @@ describe("App", () => {
     expect(element.querySelector("app-cv-editor-page")).not.toBeNull();
     expect(editorButton?.getAttribute("aria-current")).toBe("page");
     expect(tableButton?.getAttribute("aria-current")).toBeNull();
+    expect(app.session.connection()).toMatchObject({
+      status: "connected",
+      port: { id: "test" },
+    });
+    expect(app.targetAddress()).toBe("3");
+    expect(transport.connect).toHaveBeenCalledOnce();
+    expect(transport.disconnect).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["Diagnostics", "Query command-station version", "requestStationStatus", ["Firmware 5.6.6"]],
+    ["Power", "List track-manager state", "requestTrackList", ["Track A: MAIN", "Track B: PROG", "may be incomplete"]],
+  ] as const)("reads from Extended Configuration / %s", async (tab, option, request, expectedText) => {
+    let receive: ((message: SerialLogMessage) => void) | undefined;
+    const transport = {
+      listPorts: vi.fn().mockResolvedValue([{ id: "test", label: "DCC-EX" }]),
+      connect: vi.fn().mockResolvedValue({
+        capabilities: { serviceModeRead: true, serviceModeWrite: false, stationStatus: true, trackList: true },
+      }),
+      disconnect: vi.fn(),
+      readCv: vi.fn(),
+      writeCv: vi.fn(),
+      sendRawCommand: vi.fn(),
+      onSerialMessage: (listener: (message: SerialLogMessage) => void) => {
+        receive = listener;
+        return () => { receive = undefined; };
+      },
+      requestStationStatus: vi.fn(async () => {
+        receive?.({
+          direction: "incoming",
+          message: "<iDCC-EX V-5.6.6 / MEGA / EX8874 G-master-202609231425Z><p0 A>",
+        });
+      }),
+      requestTrackList: vi.fn(async () => {
+        receive?.({ direction: "incoming", message: "<= A MAIN>\n<= B PROG>\n" });
+      }),
+    };
+    TestBed.overrideProvider(DCC_TRANSPORT, { useValue: transport });
+    const fixture = TestBed.createComponent(App);
+    const editor = await showEditor(fixture);
+    await fixture.componentInstance.session.connect("test");
+    fixture.componentInstance.updateTargetAddress(3);
+    editor.selectCvDefinition(29);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const editorRead = element.querySelector<HTMLButtonElement>("app-cv-editor-page .read-button")!;
+    expect(editorRead.disabled).toBe(false);
+    const { backgroundColor, color } = getComputedStyle(editorRead);
+    await TestBed.inject(Router).navigateByUrl("/configuration");
+    const loader = TestbedHarnessEnvironment.loader(fixture);
+    await (await loader.getHarness(MatTabGroupHarness)).selectTab({ label: tab });
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(element.querySelector("app-configuration mat-select")).not.toBeNull();
+    });
+    const picker = await loader.getHarness(MatSelectHarness.with({ ancestor: "app-configuration" }));
+    await picker.clickOptions({ text: option });
+    const read = element.querySelector<HTMLButtonElement>('app-command-form button[type="button"]')!;
+    expect(read.textContent?.trim()).toBe("Read");
+    expect(read.disabled).toBe(false);
+    expect(read.classList.contains("read-button")).toBe(true);
+    expect(getComputedStyle(read).backgroundColor).toBe(backgroundColor);
+    expect(getComputedStyle(read).color).toBe(color);
+    expect(transport[request]).not.toHaveBeenCalled();
+    read.click();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      const result = element.querySelector('app-command-form [role="status"]')?.textContent;
+      for (const text of expectedText) expect(result).toContain(text);
+    });
+    expect(transport[request]).toHaveBeenCalledExactlyOnceWith();
+    expect(transport.sendRawCommand).not.toHaveBeenCalled();
+  });
+
+  it("shows the Wi-Fi network name and can reveal the password without exposing either in the preview", async () => {
+    const fixture = TestBed.createComponent(App);
+    await TestBed.inject(Router).navigateByUrl("/configuration");
+    const loader = TestbedHarnessEnvironment.loader(fixture);
+    const tabs = await loader.getHarness(MatTabGroupHarness);
+    await tabs.selectTab({ label: "Network" });
+    const element = fixture.nativeElement as HTMLElement;
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(element.querySelector("app-configuration mat-select")).not.toBeNull();
+    });
+    const picker = await loader.getHarness(MatSelectHarness.with({ ancestor: "app-configuration" }));
+    await picker.clickOptions({ text: "Set Wi-Fi station credentials" });
+
+    const network = element.querySelector<HTMLInputElement>("#command-field-ssid")!;
+    const password = element.querySelector<HTMLInputElement>("#command-field-password")!;
+    const toggle = element.querySelector<HTMLButtonElement>('button[aria-label="Show password"]')!;
+    const passwordField = password.closest("mat-form-field");
+    expect(passwordField?.querySelector(".mat-mdc-form-field-icon-suffix button")).toBe(toggle);
+    expect(network.closest("mat-form-field")?.querySelector(".mat-mdc-form-field-icon-suffix")).toBeNull();
+    const icon = toggle.querySelector("svg");
+    expect(icon).not.toBeNull();
+    expect(toggle.textContent?.trim()).toBe("");
+    expect(network.type).toBe("text");
+    expect(password.type).toBe("password");
+    for (const [field, value] of [[network, "Example network"], [password, "sample password"]] as const) {
+      field.value = value;
+      field.dispatchEvent(new Event("input"));
+    }
+
+    toggle.click();
+    fixture.detectChanges();
+    expect(password.type).toBe("text");
+    expect(password.value).toBe("sample password");
+    expect(toggle.getAttribute("aria-label")).toBe("Hide password");
+    expect(toggle.querySelector("svg")).toBe(icon);
+    const preview = element.querySelector(".command-preview")?.textContent;
+    expect(preview).toContain("<C WIFI");
+    expect(preview).not.toContain("Example network");
+    expect(preview).not.toContain("sample password");
+
+    toggle.click();
+    fixture.detectChanges();
+    expect(password.type).toBe("password");
+    expect(password.value).toBe("sample password");
+
+    toggle.click();
+    await picker.clickOptions({ text: "Set network node group" });
+    await picker.clickOptions({ text: "Set Wi-Fi station credentials" });
+    expect(element.querySelector<HTMLInputElement>("#command-field-password")?.type).toBe("password");
   });
 });

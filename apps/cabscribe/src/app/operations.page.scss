@@ -1,0 +1,158 @@
+.operations-page {
+  padding: 1rem;
+
+  .page-content {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .commands-tabs {
+    ::ng-deep {
+      .mat-mdc-tab-labels {
+        display: flex;
+        overflow-x: auto;
+        gap: 0.5rem;
+      }
+
+      .mat-mdc-tab-body-wrapper {
+        padding-top: 1.5rem;
+      }
+    }
+  }
+
+  .tab-content {
+    padding: 1rem 0;
+  }
+
+  .commands-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .empty-state {
+    color: var(--mdc-theme-text-secondary, rgba(0, 0, 0, 0.54));
+    padding: 2rem 1rem;
+    text-align: center;
+  }
+
+  .command-selector-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 400px;
+  }
+
+  .command-selector-label {
+    font-weight: 500;
+    font-size: 0.875rem;
+  }
+
+  .command-selector {
+    padding: 0.75rem;
+    border: 1px solid var(--mdc-theme-outline, #ccc);
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: inherit;
+    background-color: var(--mdc-theme-background, #fff);
+    color: var(--mdc-theme-on-background, #000);
+
+    &:focus {
+      outline: 2px solid var(--mdc-theme-primary, blue);
+      outline-offset: 2px;
+    }
+  }
+
+  .command-info {
+    padding: 1rem;
+    border: 1px solid var(--mdc-theme-outline-variant, #ddd);
+    border-radius: 4px;
+    background-color: var(--mdc-theme-surface-variant, #f5f5f5);
+  }
+
+  .command-form-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .command-syntax {
+    font-family: "Courier New", monospace;
+    padding: 0.75rem;
+    background-color: var(--mdc-theme-background, #fff);
+    border-left: 4px solid var(--mdc-theme-primary, blue);
+    overflow-x: auto;
+
+    code {
+      word-break: break-all;
+    }
+  }
+
+  .command-description {
+    color: var(--mdc-theme-on-surface-variant, rgba(0, 0, 0, 0.74));
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .command-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .phase-0-placeholder {
+    color: var(--mdc-theme-text-secondary, rgba(0, 0, 0, 0.54));
+    font-style: italic;
+    padding: 1rem;
+    text-align: center;
+  }
+
+  .command-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-start;
+  }
+
+  .send-button {
+    padding: 0.75rem 1.5rem;
+    background-color: var(--mdc-theme-primary, blue);
+    color: var(--mdc-theme-on-primary, white);
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+
+    &:hover:not(:disabled) {
+      background-color: var(--mdc-theme-primary-dark, darkblue);
+    }
+
+    &:disabled {
+      background-color: var(--mdc-theme-text-secondary, rgba(0, 0, 0, 0.54));
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    &:focus {
+      outline: 2px solid var(--mdc-theme-secondary, green);
+      outline-offset: 2px;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .operations-page {
+    padding: 0.5rem;
+
+    .command-selector-wrapper {
+      max-width: 100%;
+    }
+
+    ::ng-deep {
+      .mat-mdc-tab-labels {
+        min-width: 0;
+      }
+    }
+  }
+}

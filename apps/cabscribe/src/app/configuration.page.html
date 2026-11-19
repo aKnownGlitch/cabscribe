@@ -1,0 +1,15 @@
+<div class="configuration-page">
+  <section class="page-content">
+    <mat-tab-group [(selectedIndex)]="selectedTabIndex" mat-align-tabs="start" class="commands-tabs">
+      @for (tab of tabs; track tab.category) {
+        <mat-tab [label]="tab.label">
+          <div class="tab-content">
+            @if ($index === selectedTabIndex()) {
+              <app-command-form page="configuration" [category]="tab.category" />
+            }
+          </div>
+        </mat-tab>
+      }
+    </mat-tab-group>
+  </section>
+</div>

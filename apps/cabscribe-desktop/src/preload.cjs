@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("cabscribeDesktop", {
   requestLocomotiveAddress: () =>
     ipcRenderer.invoke("cabscribe:dcc:read-address"),
+  requestStationStatus: () => ipcRenderer.invoke("cabscribe:dcc:station-status"),
+  requestTrackList: () => ipcRenderer.invoke("cabscribe:dcc:track-list"),
   listPorts: () => ipcRenderer.invoke("cabscribe:serial:list"),
   connect: (portId) => ipcRenderer.invoke("cabscribe:serial:connect", portId),
   disconnect: () => ipcRenderer.invoke("cabscribe:serial:disconnect"),

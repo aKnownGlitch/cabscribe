@@ -21,7 +21,12 @@ import { Router, RouterLink, RouterOutlet } from "@angular/router";
 import { map } from "rxjs";
 import { DccSessionService } from "common";
 import { APP_RELEASE_DATE, APP_VERSION } from "./app-version";
-import { CV_TABLE_PATH, DEBUG_PATH } from "./app.routes";
+import {
+  CV_TABLE_PATH,
+  DEBUG_PATH,
+  CONFIGURATION_PATH,
+  OPERATIONS_PATH,
+} from "./app.routes";
 import { parseInteger } from "./parse-integer";
 
 @Component({
@@ -49,6 +54,8 @@ export class App implements OnInit {
   readonly releaseDate = APP_RELEASE_DATE;
   readonly cvTablePath = CV_TABLE_PATH;
   readonly debugPath = DEBUG_PATH;
+  readonly configurationPath = CONFIGURATION_PATH;
+  readonly operationsPath = OPERATIONS_PATH;
   readonly session = inject(DccSessionService);
   readonly targetAddress = this.session.targetAddress;
   private readonly currentUrl = toSignal(
@@ -61,13 +68,26 @@ export class App implements OnInit {
   readonly onDebugPage = computed(
     () => this.currentUrl().split(/[?#]/)[0] === `/${DEBUG_PATH}`,
   );
+  readonly onConfigurationPage = computed(
+    () => this.currentUrl().split(/[?#]/)[0] === `/${CONFIGURATION_PATH}`,
+  );
+  readonly onOperationsPage = computed(
+    () => this.currentUrl().split(/[?#]/)[0] === `/${OPERATIONS_PATH}`,
+  );
   readonly pageTitle = computed(() => {
     if (this.onTablePage()) {
       return "Read configuration variables";
     }
-    return this.onDebugPage()
-      ? "Controller debug"
-      : "Read or write a configuration variable";
+    if (this.onDebugPage()) {
+      return "Controller debug";
+    }
+    if (this.onConfigurationPage()) {
+      return "Extended Configuration";
+    }
+    if (this.onOperationsPage()) {
+      return "Operations";
+    }
+    return "Read or write a configuration variable";
   });
   readonly selectedPortId = signal("");
   private readonly viewReady = signal(false);

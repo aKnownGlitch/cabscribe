@@ -12,18 +12,14 @@
     </a>
     <span class="product-context">DCC decoder programmer</span>
     <div class="connection-actions">
-      <span class="mode-chip" role="status" aria-live="polite">
-        {{ connection.status === 'connected' ? 'Service Mode' : 'Disconnected'
-        }}
-      </span>
       <button
         [routerLink]="['/']"
-        class="editor-toggle-button"
+        class="topbar-button editor-toggle-button"
         type="button"
         aria-label="Single CV editor"
         title="Single CV editor"
-        [attr.aria-current]="!onDebugPage() && !onTablePage() ? 'page' : null"
-        [class.active]="!onDebugPage() && !onTablePage()"
+        [attr.aria-current]="!onDebugPage() && !onTablePage() && !onConfigurationPage() && !onOperationsPage() ? 'page' : null"
+        [class.active]="!onDebugPage() && !onTablePage() && !onConfigurationPage() && !onOperationsPage()"
       >
         <svg class="filled-icon" viewBox="0 0 24 24" aria-hidden="true">
           <path
@@ -33,7 +29,7 @@
       </button>
       <button
         [routerLink]="['/', cvTablePath]"
-        class="table-toggle-button"
+        class="topbar-button table-toggle-button"
         type="button"
         aria-label="Read CV table"
         title="Read CV table"
@@ -47,8 +43,40 @@
         </svg>
       </button>
       <button
+        [routerLink]="['/', configurationPath]"
+        class="topbar-button configuration-toggle-button"
+        type="button"
+        aria-label="Extended Configuration"
+        title="Extended Configuration"
+        [attr.aria-current]="onConfigurationPage() ? 'page' : null"
+        [class.active]="onConfigurationPage()"
+      >
+        <!-- Google Material Icons: extension. Adapted for inline use; see material-icons-license.txt. -->
+        <svg class="filled-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z"
+          />
+        </svg>
+      </button>
+      <button
+        [routerLink]="['/', operationsPath]"
+        class="topbar-button operations-toggle-button"
+        type="button"
+        aria-label="Operations"
+        title="Operations"
+        [attr.aria-current]="onOperationsPage() ? 'page' : null"
+        [class.active]="onOperationsPage()"
+      >
+        <!-- Google Material Icons: model_training. Adapted for inline use; see material-icons-license.txt. -->
+        <svg class="filled-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M15.5,13.5c0,2-2.5,3.5-2.5,5h-2c0-1.5-2.5-3-2.5-5c0-1.93,1.57-3.5,3.5-3.5h0C13.93,10,15.5,11.57,15.5,13.5z M13,19.5h-2 V21h2V19.5z M19,13c0,1.68-0.59,3.21-1.58,4.42l1.42,1.42C20.18,17.27,21,15.23,21,13c0-2.74-1.23-5.19-3.16-6.84l-1.42,1.42 C17.99,8.86,19,10.82,19,13z M16,5l-4-4v3c0,0,0,0,0,0c-4.97,0-9,4.03-9,9c0,2.23,0.82,4.27,2.16,5.84l1.42-1.42 C5.59,16.21,5,14.68,5,13c0-3.86,3.14-7,7-7c0,0,0,0,0,0v3L16,5z"
+          />
+        </svg>
+      </button>
+      <button
         [routerLink]="['/', debugPath]"
-        class="debug-toggle-button"
+        class="topbar-button debug-toggle-button"
         type="button"
         aria-label="Controller debug"
         title="Controller debug"
@@ -62,7 +90,7 @@
         </svg>
       </button>
       <button
-        class="connection-settings-button"
+        class="topbar-button connection-settings-button"
         type="button"
         aria-label="Serial connection settings"
         title="Serial connection settings"
@@ -85,7 +113,7 @@
       </div>
     </section>
 
-    @if (!onDebugPage()) {
+    @if (!onDebugPage() && !onConfigurationPage() && !onOperationsPage()) {
     <section
       class="operation-card address-card"
       aria-labelledby="target-address-title"

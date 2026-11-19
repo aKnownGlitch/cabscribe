@@ -1,0 +1,152 @@
+@if (commands().length === 0) {
+  <p>No commands available for {{ category() }}.</p>
+} @else {
+  @let draft = commandService.composing();
+  <div class="command-fields">
+    <mat-form-field appearance="outline">
+      <mat-label>Command</mat-label>
+      <mat-select [value]="draft?.definition?.id ?? ''" (selectionChange)="selectCommand($event.value)">
+        <mat-option value="">Select a command</mat-option>
+        @for (command of commands(); track command.id) {
+          <mat-option [value]="command.id">{{ command.displayName }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    @if (draft) {
+      <p>{{ draft.definition.description }}</p>
+      @let preview = draft.preview;
+      @for (parameter of draft.definition.parameters; track parameter.id) {
+        @let error = preview.kind === "invalid" ? preview.errors[parameter.id] : undefined;
+        @let fieldId = 'command-field-' + parameter.id;
+        @let passwordVisible = visiblePasswordField() === fieldId;
+        <div>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>{{ parameter.label }}{{ parameter.required ? '' : ' (optional)' }}</mat-label>
+            @if (parameter.type === parameterType.Enumerated) {
+              <mat-select [id]="fieldId" [required]="parameter.required"
+                [aria-describedby]="error ? fieldId + '-error' : ''"
+                [value]="draft.values[parameter.id]"
+                (selectionChange)="commandService.setParameterValue(parameter.id, $event.value)">
+                @if (!parameter.required) {
+                  <mat-option>Not specified</mat-option>
+                }
+                @for (choice of parameter.choices; track choice.value) {
+                  <mat-option [value]="choice.value">{{ choice.label }}</mat-option>
+                }
+              </mat-select>
+            } @else if (parameter.type === parameterType.Boolean) {
+              <mat-select [id]="fieldId" [required]="parameter.required"
+                [aria-describedby]="error ? fieldId + '-error' : ''"
+                [value]="draft.values[parameter.id]"
+                (selectionChange)="commandService.setParameterValue(parameter.id, $event.value)">
+                @if (!parameter.required) {
+                  <mat-option>Not specified</mat-option>
+                }
+                <mat-option [value]="true">On</mat-option>
+                <mat-option [value]="false">Off</mat-option>
+              </mat-select>
+            } @else {
+              <!-- Keep raw input so invalid numbers cannot be silently normalized by the browser. -->
+              <input matInput [id]="fieldId" [required]="parameter.required"
+                [type]="parameter.maskInput && !passwordVisible ? 'password' : 'text'"
+                [attr.autocomplete]="parameter.sensitive ? 'off' : null"
+                [attr.inputmode]="parameter.type === parameterType.Integer ? 'numeric'
+                  : parameter.type === parameterType.Numeric ? 'decimal' : 'text'"
+                [attr.aria-invalid]="error ? 'true' : null"
+                [aria-describedby]="error ? fieldId + '-error' : ''"
+                [ngModel]="draft.values[parameter.id] ?? ''"
+                (ngModelChange)="commandService.setParameterValue(parameter.id, $event)" />
+            }
+            @if (parameter.maskInput) {
+              <button mat-icon-button matIconSuffix type="button" [attr.aria-controls]="fieldId"
+                [attr.aria-label]="passwordVisible ? 'Hide password' : 'Show password'"
+                (click)="visiblePasswordField.set(passwordVisible ? null : fieldId)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+                  stroke-linejoin="round" aria-hidden="true" focusable="false">
+                  @if (passwordVisible) {
+                    <path d="M4 4l16 16M3 12c.9-1.6 2-2.9 3.3-3.8M3 12c2.4 4.1 5.4 6 9 6 1.3 0 2.5-.3 3.6-.8M10 6.2c.7-.1 1.3-.2 2-.2 3.6 0 6.6 1.9 9 6-.6 1-1.3 1.9-2 2.7" />
+                  } @else {
+                    <path d="M3 12c2.4-4.1 5.4-6 9-6s6.6 1.9 9 6c-2.4 4.1-5.4 6-9 6s-6.6-1.9-9-6Z" />
+                    <circle cx="12" cy="12" r="2.5" />
+                  }
+                </svg>
+              </button>
+            }
+            <mat-hint>{{ parameter.description }}</mat-hint>
+          </mat-form-field>
+          @if (error) {
+            <p class="field-error" [id]="fieldId + '-error'">{{ error }}</p>
+          }
+        </div>
+      }
+
+      <div aria-live="polite">
+        <strong>Command preview:</strong>
+        @switch (preview.kind) {
+          @case ("ready") { <code class="command-preview">{{ preview.command }}</code> }
+          @case ("redacted") {
+            <code class="command-preview">{{ preview.display }}</code>
+            <span> Credentials hidden.</span>
+          }
+          @case ("invalid") { <span> Complete or correct the fields above.</span> }
+          @case ("unsupported") { <span> {{ preview.reason }}</span> }
+        }
+      </div>
+      @if (draft.definition.safetyClass === safetyClass.RawPacket && preview.kind === "ready") {
+        <fieldset>
+          <legend>Review raw packet</legend>
+          <p>For safety, please confirm this command prior to transmission.</p>
+          <p>Target: {{ draft.definition.target }}</p>
+          <p><code class="command-preview">{{ preview.command }}</code></p>
+          <label>
+            <input #review type="checkbox" [checked]="commandService.rawPacketReviewed()"
+              (change)="commandService.confirmRawPacket(review.checked)" />
+            I reviewed this command and target.
+          </label>
+        </fieldset>
+      }
+      <div>
+        @let isRead = draft.definition.safetyClass === safetyClass.ReadOnly;
+        @let disabledReason = commandService.executionDisabledReason();
+        <button mat-flat-button type="button" [class.read-button]="isRead && !disabledReason"
+          [disabled]="!!disabledReason"
+          (click)="commandService.sendComposedCommand()">
+          {{ isRead ? 'Read' : 'Send' }}
+        </button>
+        @if (disabledReason) {
+          <p>{{ disabledReason }}</p>
+        }
+      </div>
+      <div role="status" aria-atomic="true">
+        @if (commandService.result(); as result) {
+          @if (result.status === "pending") {
+            <p>Waiting for the command station…</p>
+          } @else if (result.status === "observed") {
+            <p>Track modes received. The station does not mark the end of the list, so it may be incomplete.</p>
+            <ul>
+              @for (track of result.tracks; track track.id) {
+                <li>Track {{ track.id }}: {{ track.mode }}</li>
+              }
+            </ul>
+          } @else if (result.status === "confirmed") {
+            <p>Firmware {{ result.identity.version }} · {{ result.identity.board }} ·
+              {{ result.identity.shield }} · build {{ result.identity.build }}</p>
+            <p>Identity reply: <code>{{ result.directResponse }}</code></p>
+            @if (result.broadcasts.length) {
+              <p>State messages observed during the query (may include unrelated updates):</p>
+              <ul>
+                @for (message of result.broadcasts; track $index) {
+                  <li><code>{{ message }}</code></li>
+                }
+              </ul>
+            }
+          } @else {
+            <p>{{ result.error }}</p>
+          }
+        }
+      </div>
+    }
+  </div>
+}

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { DccSessionService } from './dcc-session.service';
+import { DccCommandService } from './dcc-command.service';
 import {
   DCC_TRANSPORT,
   DccTransport,
@@ -36,10 +37,16 @@ describe('DccSessionService', () => {
     return { session, transport };
   }
 
-  async function createConfirmableSession() {
+  async function createConfirmableSession(stationStatus = false, trackList = false) {
     let publish!: (message: SerialLogMessage) => void;
     let disconnect!: (message: string) => void;
     const result = await createSession({
+      connect: vi.fn().mockResolvedValue({
+        capabilities: { serviceModeRead: true, serviceModeWrite: true, stationStatus, trackList },
+      }),
+      sendRawCommand: vi.fn().mockResolvedValue(undefined),
+      requestStationStatus: vi.fn().mockResolvedValue(undefined),
+      requestTrackList: vi.fn().mockResolvedValue(undefined),
       requestLocomotiveAddress: vi.fn().mockResolvedValue(undefined),
       onSerialMessage: (listener) => {
         publish = listener;
@@ -56,6 +63,211 @@ describe('DccSessionService', () => {
       disconnect,
     };
   }
+
+  it('previews valid catalog commands without sending on unverified connections', async () => {
+    const { transport } = await createConfirmableSession();
+    const commands = TestBed.inject(DccCommandService);
+    expect(() => commands.startComposing('constructor')).toThrow('Unknown command');
+    commands.startComposing('read-cv-service-mode');
+    commands.setParameterValue('cv', '29');
+    expect(commands.composing()?.preview).toEqual({ kind: 'ready', command: '<R 29>' });
+    expect(await commands.sendComposedCommand()).toMatchObject({ status: 'unsupported' });
+    commands.setParameterValue('cv', '1025');
+    expect(commands.composing()?.preview.kind).toBe('invalid');
+    commands.startComposing('status-query');
+    expect(commands.result()).toBeNull();
+    expect(await commands.sendComposedCommand()).toMatchObject({ status: 'unsupported' });
+    expect(transport.sendRawCommand).not.toHaveBeenCalled();
+    expect(transport.requestStationStatus).not.toHaveBeenCalled();
+  });
+
+  it('does not send state-changing commands even on a connection approved for status reads', async () => {
+    const { transport } = await createConfirmableSession(true);
+    const commands = TestBed.inject(DccCommandService);
+    commands.startComposing('raw-packet-main');
+    commands.confirmRawPacket(true);
+    expect(commands.rawPacketReviewed()).toBe(false);
+    commands.setParameterValue('d0', '0');
+    commands.setParameterValue('d1', '255');
+    commands.confirmRawPacket(true);
+    expect(commands.rawPacketReviewed()).toBe(true);
+    expect(await commands.sendComposedCommand()).toMatchObject({ status: 'unsupported' });
+    commands.setParameterValue('d1', '254');
+    expect(commands.rawPacketReviewed()).toBe(false);
+    commands.confirmRawPacket(true);
+    commands.clearComposition();
+    expect(commands.rawPacketReviewed()).toBe(false);
+
+    commands.startComposing('main-power-on');
+    expect(await commands.sendComposedCommand()).toMatchObject({ status: 'unsupported' });
+    commands.startComposing('set-wifi-station');
+    commands.setParameterValue('ssid', 'Example network');
+    commands.setParameterValue('password', 'example password');
+    expect(await commands.sendComposedCommand()).toMatchObject({ status: 'unsupported' });
+    expect(transport.sendRawCommand).not.toHaveBeenCalled();
+    expect(transport.requestStationStatus).not.toHaveBeenCalled();
+  });
+
+  it('does not send new query forms on a connection approved only for station status', async () => {
+    const { transport } = await createConfirmableSession(true);
+    const commands = TestBed.inject(DccCommandService);
+    commands.startComposing('query-turnout-details');
+    commands.setParameterValue('id', '17');
+    expect(commands.composing()?.preview).toEqual({ kind: 'ready', command: '<T 17 X>' });
+    expect(await commands.sendComposedCommand()).toMatchObject({ status: 'unsupported' });
+    expect(transport.sendRawCommand).not.toHaveBeenCalled();
+    expect(transport.requestStationStatus).not.toHaveBeenCalled();
+  });
+
+  it('does not fall back to raw sending when the dedicated status request is missing', async () => {
+    const raw = vi.fn();
+    const { session } = await createSession({
+      connect: vi.fn().mockResolvedValue({
+        capabilities: { serviceModeRead: true, serviceModeWrite: false, stationStatus: true },
+      }),
+      sendRawCommand: raw,
+      onSerialMessage: () => vi.fn(),
+    });
+    await expect(session.readStationStatus()).rejects.toMatchObject({ code: 'unsupported' });
+    expect(raw).not.toHaveBeenCalled();
+  });
+
+  it('separates fragmented identity and status broadcasts, and holds the shared session lock', async () => {
+    vi.useFakeTimers();
+    try {
+      const { session, transport, incoming } = await createConfirmableSession(true);
+      const commands = TestBed.inject(DccCommandService);
+      commands.startComposing('version-query');
+      const query = commands.sendComposedCommand();
+      expect(commands.result()?.status).toBe('pending');
+      expect(session.operationInProgress()).toBe(true);
+      expect(await commands.sendComposedCommand()).toMatchObject({ status: 'unsupported' });
+      await session.readCv(3, 29);
+      expect(transport.readCv).not.toHaveBeenCalled();
+      incoming('<p0><iDCC-EX V-5.4.');
+      incoming('0 / MEGA / STANDARD G-abc123><p1 MAIN><H 4 0><v 29 1>');
+      incoming('<Q 7>');
+      await vi.advanceTimersByTimeAsync(200);
+      expect(await query).toMatchObject({
+        status: 'confirmed',
+        identity: { version: '5.4.0', board: 'MEGA', shield: 'STANDARD', build: 'abc123' },
+        directResponse: '<iDCC-EX V-5.4.0 / MEGA / STANDARD G-abc123>',
+        broadcasts: ['<p1 MAIN>', '<H 4 0>', '<Q 7>'],
+      });
+      expect(transport.requestStationStatus).toHaveBeenCalledExactlyOnceWith();
+      expect(transport.sendRawCommand).not.toHaveBeenCalled();
+      expect(session.operationInProgress()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
+    ['<X>', 'rejected'],
+    ['<iDCC-EX V-invalid>', 'invalid-response'],
+    [undefined, 'disconnected'],
+  ] as const)('reports an unsuccessful status query (%s) and unlocks the session', async (reply, status) => {
+    const { session, incoming, disconnect } = await createConfirmableSession(true);
+    const commands = TestBed.inject(DccCommandService);
+    commands.startComposing('status-query');
+    const query = commands.sendComposedCommand();
+    if (reply) incoming(reply);
+    else disconnect('Device removed');
+    expect(await query).toMatchObject({ status });
+    expect(session.operationInProgress()).toBe(false);
+  });
+
+  it('times out a stalled write, blocks late replies, and drops results after leaving the form', async () => {
+    vi.useFakeTimers();
+    try {
+      const { session, transport, incoming } = await createConfirmableSession(true);
+      vi.mocked(transport.requestStationStatus!).mockImplementationOnce(() => new Promise(() => undefined));
+      const commands = TestBed.inject(DccCommandService);
+      commands.startComposing('status-query');
+      const query = commands.sendComposedCommand();
+      commands.clearComposition();
+      commands.clearResults();
+      incoming('<iDCC-EX V-5.4.0 / MEGA / STANDARD G-abc123>');
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(await query).toMatchObject({ status: 'timeout' });
+      expect(commands.result()).toBeNull();
+      expect(session.operationInProgress()).toBe(false);
+      commands.startComposing('status-query');
+      expect(commands.executionDisabledReason()).toContain('Reconnect');
+      expect(await commands.sendComposedCommand()).toMatchObject({ status: 'unsupported' });
+      expect(transport.requestStationStatus).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not treat a completed write or unrelated traffic as a status reply', async () => {
+    vi.useFakeTimers();
+    try {
+      const { session, transport, incoming } = await createConfirmableSession(true);
+      const commands = TestBed.inject(DccCommandService);
+      commands.startComposing('list-tracks');
+      expect(await commands.sendComposedCommand()).toMatchObject({ status: 'unsupported' });
+      expect(transport.sendRawCommand).not.toHaveBeenCalled();
+      expect(transport.requestStationStatus).not.toHaveBeenCalled();
+
+      commands.startComposing('status-query');
+      const query = commands.sendComposedCommand();
+      incoming('<p1 MAIN><v 29 1>');
+      await vi.advanceTimersByTimeAsync(2999);
+      expect(commands.result()?.status).toBe('pending');
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await query).toMatchObject({ status: 'timeout' });
+      expect(session.operationInProgress()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reports observed track modes from fragmented frames without assuming a complete list', async () => {
+    vi.useFakeTimers();
+    try {
+      const { session, transport, incoming } = await createConfirmableSession(true, true);
+      const commands = TestBed.inject(DccCommandService);
+      commands.startComposing('list-tracks');
+      const query = commands.sendComposedCommand();
+      await expect(session.readStationStatus()).rejects.toMatchObject({ code: 'unsupported' });
+      incoming('<p0 A><= A MA');
+      incoming('IN><p0 B><= B PROG>');
+      await vi.advanceTimersByTimeAsync(500);
+      expect(await query).toMatchObject({
+        status: 'observed',
+        tracks: [{ id: 'A', mode: 'MAIN' }, { id: 'B', mode: 'PROG' }],
+      });
+      expect(transport.requestTrackList).toHaveBeenCalledExactlyOnceWith();
+      expect(transport.requestStationStatus).not.toHaveBeenCalled();
+      expect(transport.sendRawCommand).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
+    ['<X>', 'rejected'],
+    ['<= A>', 'invalid-response'],
+    ['<p0>', 'timeout'],
+    [undefined, 'disconnected'],
+  ] as const)('reports track list failures (%s) without returning an empty list', async (reply, status) => {
+    vi.useFakeTimers();
+    try {
+      const { session, incoming, disconnect } = await createConfirmableSession(false, true);
+      const commands = TestBed.inject(DccCommandService);
+      commands.startComposing('list-tracks');
+      const query = commands.sendComposedCommand();
+      if (reply) incoming(reply);
+      else disconnect('Device removed');
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(await query).toMatchObject({ status });
+      expect(session.operationInProgress()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
   it('confirms an actual locomotive address from fragmented frames and ignores other traffic', async () => {
     const { session, transport, incoming } = await createConfirmableSession();
