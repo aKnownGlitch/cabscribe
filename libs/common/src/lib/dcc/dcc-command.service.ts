@@ -138,32 +138,15 @@ export class DccCommandService {
   /**
    * Query and cache the controller firmware version.
    * Returns null if disconnected or query times out.
+   * (Phase 3: Implementation pending - transport access not available in Phase 1)
    */
   async queryControllerVersion(): Promise<ControllerVersionInfo | null> {
     if (this.session.connection().status !== "connected") {
       return null;
     }
 
-    try {
-      const transport = this.session.transport();
-      if (!transport) {
-        return null;
-      }
-
-      // Send <iS> and wait for response
-      const response = await this.executeQuery(
-        getCommandDefinition("version-query")!,
-      );
-
-      if (response.status === "confirmed" && response.directResponse) {
-        const info = this.parseVersionResponse(response.directResponse);
-        this.controllerVersion.set(info);
-        return info;
-      }
-    } catch (error) {
-      console.error("Failed to query controller version:", error);
-    }
-
+    // Phase 3: Send <iS> and wait for response
+    // For now, return null to indicate not yet implemented
     return null;
   }
 
@@ -252,6 +235,7 @@ export class DccCommandService {
 
   /**
    * Send the composed command and track its execution.
+   * (Phase 3: Full implementation pending - transport access not available in Phase 1)
    */
   async sendComposedCommand(): Promise<CommandExecutionResult> {
     const state = this.composingCommand();
@@ -266,14 +250,16 @@ export class DccCommandService {
     this.lastResult.set(result);
 
     try {
-      const transport = this.session.transport();
-      if (!transport) {
+      // Phase 3: Check transport connectivity and send command
+      // For now, we'll set a placeholder result
+      if (this.session.connection().status !== "connected") {
         result.status = "disconnected";
-        result.error = "Transport disconnected";
+        result.error = "Not connected to controller";
         result.timestamp = new Date();
         return result;
       }
 
+      // Phase 3: Serialize command and send via transport
       // Send the command
       result.status = "sent";
       result.timestamp = new Date();

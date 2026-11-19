@@ -72,7 +72,11 @@ export class ConfigurationPage implements OnInit, OnDestroy {
     this.commandService.clearResults();
   }
 
-  selectCommand(commandId: string): void {
+  selectCommand(event: Event): void {
+    const target = event.target as HTMLSelectElement;
+    const commandId = target.value;
+    if (!commandId) return;
+    
     try {
       this.commandService.startComposing(commandId);
     } catch (error) {

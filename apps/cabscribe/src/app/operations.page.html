@@ -25,7 +25,7 @@
               <select
                 [id]="'command-select-' + selectedTabIndex()"
                 class="command-selector"
-                (change)="selectCommand($event.target.value)"
+                (change)="selectCommand($event)"
               >
                 <option value="">-- Select a command --</option>
                 @for (cmd of categoryCommands(); track trackByCommandId($index, cmd)) {
