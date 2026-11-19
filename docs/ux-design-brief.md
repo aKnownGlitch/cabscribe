@@ -39,7 +39,7 @@ controls, or firmware workflows.
    editor; this is the target for the programming operation.
 6. Enter one CV address and press **Read**; on success, the returned value
    appears in the editable **Value** field.
-7. Edit the value if needed and press **Write** to review and explicitly
+7. Edit the value if needed and press **Send** to review and explicitly
    confirm the change for that same target and CV.
 8. See the write in progress, then the read-back value and a verified success,
    mismatch, or unverified/failure outcome.
@@ -58,7 +58,7 @@ one primary application screen rather than separate pages.
   screen. Keep the **Disconnected** status and adjacent icon button to open
   serial connection settings in the header.
 - A single CV editor with a CV address field, editable Value field, and **Read**
-  and **Write** buttons; unavailable until the connection is ready, or with a
+  and **Send** buttons; unavailable until the connection is ready, or with a
   clear prompt directing the user to connect first.
 - Helpful state for device discovery failure or unavailable permissions.
 - Show the **Programming Target Address** section above the CV editor with one
@@ -103,8 +103,8 @@ one primary application screen rather than separate pages.
   connection settings dialog, not in a main-screen hardware panel.
 - Programming context identified as **Service Mode**.
 - One shared single-CV form with CV address and Value fields and **Read** and
-  **Write** actions.
-- Use a filled primary-color **Read** button and a filled warning-red **Write**
+  **Send** actions.
+- Use a filled primary-color **Read** button and a filled warning-red **Send**
   button, both with white text.
 - Include an optional **CV function** dropdown that sets the same CV address
   as manual entry. Match known functions when an address is typed; retain
@@ -152,7 +152,7 @@ one primary application screen rather than separate pages.
 - Add a **Clear** button beside the debug heading to empty the current log
   without affecting the connection or operations. Disable it when the log is
   empty; new serial traffic continues to appear after clearing. Match the
-  **Write** button's filled warning-red background and white text.
+  Single CV editor's **Send** button's filled warning-red background and white text.
 
 - Use **Debug output** as the heading; omit the **SERIAL MONITOR** kicker.
 - Replace the latest-operation result panel with a read-only serial log.

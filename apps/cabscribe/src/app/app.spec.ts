@@ -464,7 +464,11 @@ describe("App", () => {
     Object.defineProperty(writeDialog, "close", {
       value: closeWriteDialog,
     });
-    editor.requestWrite();
+    fixture.detectChanges();
+    const sendButton = (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>(".operation-button.write-button")!;
+    expect(sendButton.textContent?.trim()).toBe("Send");
+    sendButton.click();
 
     expect(showWriteDialog).toHaveBeenCalledOnce();
     expect(editor.pendingWrite()).toEqual({
