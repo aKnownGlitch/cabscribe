@@ -38,14 +38,14 @@ resolve documentation and firmware disagreements before promotion.
 | Operations / Turnouts | Turnout details/state, sensor lists, output lists/state | Turnout/output ID, explicit close/throw vs. numeric position, active state |
 | Operations / JMRI | Automation, fast clock, gauge/current/display, stash, turntable, roster, signal and turnout queries or actions | Route/entity IDs, time and rate, display/row, stash ID and locomotive ID |
 | Operations / Turntables | List/status and DCC/EXTT movement | Turntable ID, position and EXTT activity |
-| Operations / Accessories | Basic/extended accessories, POM, Service Mode read/write/verify and address programming | Distinct address schemes; loco/consist ID, CV, byte, bit and direction; RailCom prerequisites |
 | Operations / Consists | Consist list/create/remove, momentum, MAIN/PROG raw-packet review | Bounded lists of signed locomotive IDs or bytes; separate symmetric/asymmetric momentum forms |
-| Operations / Pins | Digital/PWM, NeoPixels, virtual displays, sound and SensorCam | Signed VPIN, profile and duration, RGB/count, quoted text, sound track/folder/volume/EQ, device-dependent options |
-| Operations / Automation | EXRAIL status/control, routes, tasks, reservations, latches, signals, block and LCC events | Route and optional loco, task/section/latch/signal/block/event IDs, distinct all/one variants |
 
 JMRI roster configuration and turntable setup are out of scope for CabScribe.
 The inventory still documents those firmware commands; the JMRI and Turntables
 tabs remain available on Operations only.
+Operations no longer has dedicated Accessories, Pins, or Automation tabs.
+Use the Single CV editor for decoder programming; the protocol inventory still
+documents all three command families.
 
 Extend [the catalog](../libs/common/src/lib/dcc/command-definitions.ts) and
 [preview validation](../libs/common/src/lib/dcc/command-preview.ts) only as needed:
@@ -63,7 +63,7 @@ fixtures and invalid cases; unresolved forms have a documented blocker.
 **First batch implemented:** 13 new read-only previews for capacity, turnout
 details, sensors, outputs, fast clock, roster, JMRI turnout and turntable
 queries, turntable status, and consists. The existing Service Mode CV preview
-is also available in Operations / Accessories without duplicating its schema.
+remains in Extended Configuration / Power and Operations / Track.
 The new queries are Operations-only and are not on the execution allowlist.
 The rest of the coverage table remains backlog.
 
@@ -102,11 +102,17 @@ Use a fixture and a real-device acceptance check for each newly enabled form.
 **Adapter implementation:** Station identity and status now share a dedicated,
 argument-free transport request. Electron uses a fixed IPC route, not a raw
 serial writer. Automated tests cover the Web Serial write and the Electron
-bridge, IPC handler, and serial drain with simulated devices. Web Serial and
-Electron now advertise support for this one read-only request so it can be
-tested in the app. Before marking either adapter hardware-verified, record the
-parsed identity, any independent broadcasts, and behavior after physical
-unplug and reconnect. The earlier direct USB probe does not satisfy this gate.
+bridge, IPC handler, and serial drain with simulated devices. The user verified
+station identity through Web Serial; Electron and physical unplug/reconnect
+checks remain open.
+
+**Track list:** Both adapters support the dedicated read-only `<=>` request.
+The [Web Serial Debug trace](./extended-configuration-operations-plan.md#hardware-verification-record)
+supplied the initial reply fixture. The pinned firmware emits one frame per
+track and no terminator. The app collects rows for 500 ms after the first
+recognized row, labels them as observed, and treats no rows before the deadline
+as a timeout rather than an empty list. Real-device checks through the dedicated
+form remain open.
 
 **Exit:** Both adapters can exercise their approved read-only subset end to end;
 unapproved commands cannot reach serial, even if they can be previewed.

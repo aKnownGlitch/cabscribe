@@ -89,10 +89,7 @@ Use scrollable tabs with short labels mapped to the command inventory areas:
 3. **Turnouts** — Turnouts, sensors, and outputs
 4. **JMRI** — JMRI-compatible information and roster
 5. **Turntables** — Turntables
-6. **Accessories** — DCC accessory and programming commands
-7. **Consists** — Consists, momentum, and raw packets
-8. **Pins** — Pins, displays, sound, and peripherals
-9. **Automation** — EXRAIL automation
+6. **Consists** — Consists, momentum, and raw packets
 
 Tabs are an information architecture boundary, not a capability guarantee.
 Hide or disable command forms that the active connection or firmware does not
@@ -272,6 +269,13 @@ valid results from timeout, unsupported, malformed, and disconnected states.
   verified; the rejection could not be attributed to a specific request.
   The port closed normally. No throttle, power-control, or other
   state-changing commands were sent. This was not an app adapter test.
+- **2026-11-19, user-reported Web Serial check:** `<s>` worked in both Debug
+  and Extended Configuration. A separate `<=>` request in Debug returned
+  `<= A MAIN>` followed by `<= B PROG>` with no end marker visible in the
+  supplied log. This was not an Electron check, and no physical
+  unplug/reconnect result was reported. This verifies the observed track-list
+  rows in Debug, not a dedicated Track List workflow or a rule for detecting
+  list completion.
 
 ### Phase 4 — Configuration and state-changing operations
 

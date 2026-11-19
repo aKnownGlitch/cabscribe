@@ -21,10 +21,7 @@ export class OperationsPage {
     { label: "Turnouts", category: "Turnouts, sensors, and outputs" },
     { label: "JMRI", category: "JMRI-compatible information and roster" },
     { label: "Turntables", category: "Turntables" },
-    { label: "Accessories", category: "DCC accessory and programming commands" },
     { label: "Consists", category: "Consists, momentum, and raw packets" },
-    { label: "Pins", category: "Pins, displays, sound, and peripherals" },
-    { label: "Automation", category: "EXRAIL automation" },
   ];
 
   readonly selectedTabIndex = signal(0);

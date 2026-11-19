@@ -168,13 +168,14 @@ describe("WebSerialDccTransport", () => {
     await transport.disconnect();
   });
 
-  it("does not enable station status on a port without a writable stream", async () => {
+  it("does not enable station queries on a port without a writable stream", async () => {
     const { port, serial } = createTransport();
     serial.getPorts.mockResolvedValueOnce([{ ...port, writable: null }]);
     const transport = new WebSerialDccTransport(serial);
     const [info] = await transport.listPorts();
     const connection = await transport.connect(info.id);
     expect(connection.capabilities.stationStatus).toBe(false);
+    expect(connection.capabilities.trackList).toBe(false);
     await transport.disconnect();
   });
 
@@ -199,7 +200,9 @@ describe("WebSerialDccTransport", () => {
       serviceModeRead: true,
       serviceModeWrite: false,
       stationStatus: true,
+      trackList: true,
     });
+
     controller.enqueue(new TextEncoder().encode("<iDCC-EX>"));
     await vi.waitFor(() =>
       expect(messages).toEqual([
@@ -214,6 +217,16 @@ describe("WebSerialDccTransport", () => {
     expect(port.readable?.locked).toBe(false);
     expect(port.close).toHaveBeenCalledOnce();
     expect(disconnected).not.toHaveBeenCalled();
+  });
+
+  it("writes the exact read-only track list query", async () => {
+    const { transport, write } = createTransport();
+    const [info] = await transport.listPorts();
+    expect((await transport.connect(info.id)).capabilities.trackList).toBe(true);
+    await transport.requestTrackList();
+    expect(write).toHaveBeenCalledOnce();
+    expect(write.mock.calls[0][0]).toEqual(new TextEncoder().encode("<=>"));
+    await transport.disconnect();
   });
 
   it("notifies the session when the serial stream fails", async () => {

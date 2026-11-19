@@ -116,8 +116,9 @@ disconnecting the station.
 
 | Commands | Web Serial | Electron | Hardware and firmware status |
 | --- | --- | --- | --- |
-| Station identity/status (`<s>`) | Read enabled for testing | Read enabled for testing | The [direct USB bench probe](docs/extended-configuration-operations-plan.md#hardware-verification-record) passed on MEGA / EX8874 with DCC-EX 5.6.6; real-device verification through both app adapters is pending |
-| Track list (`<=>`), turnout list (`<T>`), Service Mode CV read (`<R cv>`) on these pages | Preview only | Preview only | No live support approved; use the existing CV editor or CV Table for Service Mode reads |
+| Station identity/status (`<s>`) | Read enabled for testing | Read enabled for testing | [Verified by the user over Web Serial in Debug and Extended Configuration](docs/extended-configuration-operations-plan.md#hardware-verification-record); Electron and physical reconnect checks are pending |
+| Track list (`<=>`) | Read enabled | Read enabled | Web Serial Debug returned rows for tracks A and B; the dedicated workflow is covered by automated tests and awaits hardware verification. The firmware does not mark the end of the list |
+| Turnout list (`<T>`), Service Mode CV read (`<R cv>`) on these pages | Preview only | Preview only | No live support approved; use the existing CV editor or CV Table for Service Mode reads |
 | Locomotive capacity, turnout details, sensor/output lists, JMRI clock/roster/turnout/turntable queries, turntable status, and consist list | Preview only | Preview only | Syntax checked against the pinned source; response and adapter verification pending |
 | MAIN track power (`<1 MAIN>`, `<0 MAIN>`) | Preview only | Preview only | Side effects not verified on hardware |
 | Node group and Wi-Fi station settings (`<C NODEGROUP …>`, `<C WIFI …>`) | Preview only | Preview only | DCC-EX 6.x network forms; no firmware build approved. Use sample credentials: the network name is visible in its input, the password is hidden by default with a trailing eye icon to toggle visibility, and both are redacted from the preview |
@@ -126,8 +127,11 @@ disconnecting the station.
 To test the read-only request, connect to the command station and select
 **Extended Configuration → Diagnostics → Query command-station version → Read**.
 The same request is available under **Operations → Throttle → Query command-station
-status**; it does not send a throttle command. All other commands on these
-pages remain preview-only. Tabs with no catalog entries show an empty state. The
+status**; it does not send a throttle command. To view track modes, select
+**Extended Configuration → Power** or **Operations → Track**, then
+**List track-manager state → Read**. The app shows observed rows, not a
+guaranteed complete list. Other commands on these pages remain preview-only.
+Tabs with no catalog entries show an empty state. The
 [command inventory](docs/dcc-ex-serial-commands.md) is a protocol reference,
 not a list of supported commands.
 

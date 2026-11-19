@@ -118,6 +118,7 @@ ipcMain.handle("cabscribe:serial:connect", async (_event, portId) => {
       serviceModeRead: true,
       serviceModeWrite: false,
       stationStatus: true,
+      trackList: true,
     },
     message:
       "The serial port is open at 115200 baud. CV writing is not enabled yet.",
@@ -163,20 +164,25 @@ ipcMain.handle("cabscribe:dcc:read-address", async () => {
   await writeSerialCommand(port, "<R LOCOID>", "Address read");
 });
 
-ipcMain.handle("cabscribe:dcc:station-status", async (event, ...args) => {
-  const contents = mainWindow?.webContents;
-  if (!contents || event.sender !== contents || event.senderFrame !== contents.mainFrame) {
-    throw new Error("Station status can only be requested by the app window.");
-  }
-  if (args.length !== 0) {
-    throw new Error("Station status does not accept arguments.");
-  }
-  const port = activePort;
-  if (!port?.isOpen) {
-    throw new Error("Connect to a command station before reading its status.");
-  }
-  await writeSerialCommand(port, "<s>", "Station status query");
-});
+function stationQuery(command, label) {
+  return async (event, ...args) => {
+    const contents = mainWindow?.webContents;
+    if (!contents || event.sender !== contents || event.senderFrame !== contents.mainFrame) {
+      throw new Error(`${label} can only be requested by the app window.`);
+    }
+    if (args.length !== 0) {
+      throw new Error(`${label} does not accept arguments.`);
+    }
+    const port = activePort;
+    if (!port?.isOpen) {
+      throw new Error("Connect to a command station before reading.");
+    }
+    await writeSerialCommand(port, command, `${label} query`);
+  };
+}
+
+ipcMain.handle("cabscribe:dcc:station-status", stationQuery("<s>", "Station status"));
+ipcMain.handle("cabscribe:dcc:track-list", stationQuery("<=>", "Track list"));
 
 ipcMain.handle("cabscribe:dcc:write-cv", async (_event, address, cv, value) => {
   if (!Number.isSafeInteger(address) || address < 1) {

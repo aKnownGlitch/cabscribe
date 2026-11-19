@@ -15,6 +15,7 @@ import { DccExCvReader } from "./dcc-ex-cv-reader";
 export interface CabscribeDesktopBridge {
   requestLocomotiveAddress(): Promise<void>;
   requestStationStatus?(): Promise<void>;
+  requestTrackList?(): Promise<void>;
   listPorts(): Promise<SerialPortInfo[]>;
   connect(portId: string): Promise<DccConnectionInfo>;
   disconnect(): Promise<void>;
@@ -49,6 +50,12 @@ export class ElectronDccTransport implements DccTransport {
     );
   }
 
+  requestTrackList(): Promise<void> {
+    return this.bridge.requestTrackList?.() ?? Promise.reject(
+      new DccTransportError("unsupported", "The desktop bridge does not support track list reads."),
+    );
+  }
+
   listPorts(): Promise<SerialPortInfo[]> {
     return this.bridge.listPorts();
   }
@@ -56,13 +63,14 @@ export class ElectronDccTransport implements DccTransport {
   async connect(portId: string): Promise<DccConnectionInfo> {
     const connection = await this.bridge.connect(portId);
     this.cvReader.reset();
-    if (connection.capabilities.stationStatus && !this.bridge.requestStationStatus) {
-      return {
-        ...connection,
-        capabilities: { ...connection.capabilities, stationStatus: false },
-      };
-    }
-    return connection;
+    return {
+      ...connection,
+      capabilities: {
+        ...connection.capabilities,
+        stationStatus: connection.capabilities.stationStatus && !!this.bridge.requestStationStatus,
+        trackList: connection.capabilities.trackList && !!this.bridge.requestTrackList,
+      },
+    };
   }
 
   disconnect(): Promise<void> {

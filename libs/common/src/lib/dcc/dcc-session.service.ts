@@ -8,11 +8,13 @@ import {
   SerialPortInfo,
 } from './dcc-transport';
 import { DccStationStatus, DccStationStatusReader } from './dcc-station-status';
+import { DccTrack, DccTrackListReader } from './dcc-track-list';
 
 const MAX_SERIAL_LOG_LINES = 1000;
 const ADDRESS_CONFIRMATION_TIMEOUT_MS = 15000;
-const STATION_STATUS_TIMEOUT_MS = 3000;
+const STATION_QUERY_TIMEOUT_MS = 3000;
 const STATUS_BROADCAST_WINDOW_MS = 200;
+const TRACK_LIST_OBSERVATION_MS = 500;
 
 export type AddressConfirmationState =
   | { status: 'idle' }
@@ -306,7 +308,7 @@ export class DccSessionService {
 
   async readCv(address: number, cv: number): Promise<void> {
     if (this.stationStatusActive()) {
-      this.operation.set({ kind: 'read-failure', address, cv, message: 'Wait for the station status query to finish.' });
+      this.operation.set({ kind: 'read-failure', address, cv, message: 'Wait for the command-station query to finish.' });
       return;
     }
     if (this.addressConfirmation().status === 'confirming') {
@@ -350,7 +352,7 @@ export class DccSessionService {
 
   async writeCv(address: number, cv: number, value: number): Promise<void> {
     if (this.stationStatusActive()) {
-      this.operation.set({ kind: 'write-failure', address, cv, value, message: 'Wait for the station status query to finish.' });
+      this.operation.set({ kind: 'write-failure', address, cv, value, message: 'Wait for the command-station query to finish.' });
       return;
     }
     if (this.addressConfirmation().status === 'confirming') {
@@ -428,7 +430,7 @@ export class DccSessionService {
 
   async sendCommand(command: string): Promise<void> {
     if (this.stationStatusActive()) {
-      throw new Error('Wait for the station status query to finish.');
+      throw new Error('Wait for the command-station query to finish.');
     }
     if (this.connection().status !== 'connected') {
       throw new Error('Connect to a command station before sending a command.');
@@ -451,12 +453,24 @@ export class DccSessionService {
   }
 
   stationStatusBlock(): DccTransportError | undefined {
+    return this.stationQueryBlock('stationStatus', this.transport.requestStationStatus, 'Station status');
+  }
+
+  trackListBlock(): DccTransportError | undefined {
+    return this.stationQueryBlock('trackList', this.transport.requestTrackList, 'Track list');
+  }
+
+  private stationQueryBlock(
+    capability: 'stationStatus' | 'trackList',
+    request: (() => Promise<void>) | undefined,
+    label: string,
+  ): DccTransportError | undefined {
     const connection = this.connection();
     if (connection.status !== 'connected') {
-      return new DccTransportError('not-connected', 'Connect to a command station before reading its status.');
+      return new DccTransportError('not-connected', 'Connect to a command station before reading.');
     }
-    if (!connection.capabilities.stationStatus || !this.transport.requestStationStatus || !this.transport.onSerialMessage) {
-      return new DccTransportError('unsupported', 'This connection does not support station status reads. Preview only.');
+    if (!connection.capabilities[capability] || !request || !this.transport.onSerialMessage) {
+      return new DccTransportError('unsupported', `${label} reads are not supported on this connection. Preview only.`);
     }
     if (this.stationStatusNeedsReconnect()) {
       return new DccTransportError('unsupported', 'Reconnect before retrying so a delayed reply cannot be mistaken for a new one.');
@@ -470,15 +484,34 @@ export class DccSessionService {
   async readStationStatus(): Promise<DccStationStatus> {
     const block = this.stationStatusBlock();
     if (block) throw block;
+    return this.readStationQuery(
+      new DccStationStatusReader(), () => this.transport.requestStationStatus!(),
+      STATUS_BROADCAST_WINDOW_MS, 'Station status',
+    );
+  }
 
+  async readTrackList(): Promise<readonly DccTrack[]> {
+    const block = this.trackListBlock();
+    if (block) throw block;
+    return this.readStationQuery(
+      new DccTrackListReader(), () => this.transport.requestTrackList!(),
+      TRACK_LIST_OBSERVATION_MS, 'Track list',
+    );
+  }
+
+  private async readStationQuery<T>(
+    reader: { receive(chunk: string): void; result(): T | undefined },
+    request: () => Promise<void>,
+    observationMs: number,
+    label: string,
+  ): Promise<T> {
     this.stationStatusActive.set(true);
-    const reader = new DccStationStatusReader();
     let deadline: ReturnType<typeof setTimeout> | undefined;
     let broadcastWindow: ReturnType<typeof setTimeout> | undefined;
     let writeFinished = false;
-    let captured: DccStationStatus | undefined;
+    let captured: T | undefined;
     let finishWrite: (() => void) | undefined;
-    const response = new Promise<DccStationStatus>((resolve, reject) => {
+    const response = new Promise<T>((resolve, reject) => {
       finishWrite = () => {
         writeFinished = true;
         if (captured) resolve(captured);
@@ -492,7 +525,7 @@ export class DccSessionService {
               broadcastWindow = setTimeout(() => {
                 captured = reader.result();
                 if (captured && writeFinished) resolve(captured);
-              }, STATUS_BROADCAST_WINDOW_MS);
+              }, observationMs);
             }
           } catch (error) {
             reject(error);
@@ -500,12 +533,12 @@ export class DccSessionService {
         },
       };
       deadline = setTimeout(() => reject(new DccTransportError(
-        'timeout', 'Station status timed out. Reconnect before retrying.',
-      )), STATION_STATUS_TIMEOUT_MS);
+        'timeout', `${label} timed out. Reconnect before retrying.`,
+      )), STATION_QUERY_TIMEOUT_MS);
     });
     try {
       const write = async () => {
-        await this.transport.requestStationStatus!();
+        await request();
         finishWrite?.();
       };
       const [status] = await Promise.all([response, write()]);
@@ -522,7 +555,7 @@ export class DccSessionService {
   }
 
   private cancelStationStatus(): void {
-    this.stationStatusRequest?.reject(new DccTransportError('disconnected', 'Disconnected during the station status query.'));
+    this.stationStatusRequest?.reject(new DccTransportError('disconnected', 'Disconnected during the command-station query.'));
   }
 
   private connectionFailure(error: unknown): ConnectionState {

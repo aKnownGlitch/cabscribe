@@ -482,11 +482,6 @@ export const COMMAND_DEFINITIONS: Record<string, CommandDefinition> = {
   "read-cv-service-mode": {
     id: "read-cv-service-mode",
     category: "Track power and track configuration",
-    placements: [
-      { page: "configuration", category: "Track power and track configuration" },
-      { page: "operations", category: "Track power and track configuration" },
-      { page: "operations", category: "DCC accessory and programming commands" },
-    ],
     displayName: "Read a configuration variable (Service Mode)",
     syntax: "<R {cv}>",
     description:

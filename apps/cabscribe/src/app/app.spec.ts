@@ -770,7 +770,7 @@ describe("App", () => {
       if (routeComponent === "app-configuration") {
         expect(tabLabels).toEqual(["Power", "Turnouts", "Network", "Diagnostics"]);
       } else {
-        expect(tabLabels).toEqual(expect.arrayContaining(["JMRI", "Turntables"]));
+        expect(tabLabels).toEqual(["Throttle", "Track", "Turnouts", "JMRI", "Turntables", "Consists"]);
       }
     }
     const loader = TestbedHarnessEnvironment.loader(fixture);
@@ -816,12 +816,15 @@ describe("App", () => {
     expect(transport.disconnect).not.toHaveBeenCalled();
   });
 
-  it("reads the command-station version from Extended Configuration", async () => {
+  it.each([
+    ["Diagnostics", "Query command-station version", "requestStationStatus", ["Firmware 5.6.6"]],
+    ["Power", "List track-manager state", "requestTrackList", ["Track A: MAIN", "Track B: PROG", "may be incomplete"]],
+  ] as const)("reads from Extended Configuration / %s", async (tab, option, request, expectedText) => {
     let receive: ((message: SerialLogMessage) => void) | undefined;
     const transport = {
       listPorts: vi.fn().mockResolvedValue([{ id: "test", label: "DCC-EX" }]),
       connect: vi.fn().mockResolvedValue({
-        capabilities: { serviceModeRead: true, serviceModeWrite: false, stationStatus: true },
+        capabilities: { serviceModeRead: true, serviceModeWrite: false, stationStatus: true, trackList: true },
       }),
       disconnect: vi.fn(),
       readCv: vi.fn(),
@@ -837,6 +840,9 @@ describe("App", () => {
           message: "<iDCC-EX V-5.6.6 / MEGA / EX8874 G-master-202609231425Z><p0 A>",
         });
       }),
+      requestTrackList: vi.fn(async () => {
+        receive?.({ direction: "incoming", message: "<= A MAIN>\n<= B PROG>\n" });
+      }),
     };
     TestBed.overrideProvider(DCC_TRANSPORT, { useValue: transport });
     const fixture = TestBed.createComponent(App);
@@ -851,27 +857,27 @@ describe("App", () => {
     const { backgroundColor, color } = getComputedStyle(editorRead);
     await TestBed.inject(Router).navigateByUrl("/configuration");
     const loader = TestbedHarnessEnvironment.loader(fixture);
-    await (await loader.getHarness(MatTabGroupHarness)).selectTab({ label: "Diagnostics" });
+    await (await loader.getHarness(MatTabGroupHarness)).selectTab({ label: tab });
     await vi.waitFor(() => {
       fixture.detectChanges();
       expect(element.querySelector("app-configuration mat-select")).not.toBeNull();
     });
     const picker = await loader.getHarness(MatSelectHarness.with({ ancestor: "app-configuration" }));
-    await picker.clickOptions({ text: "Query command-station version" });
+    await picker.clickOptions({ text: option });
     const read = element.querySelector<HTMLButtonElement>('app-command-form button[type="button"]')!;
     expect(read.textContent?.trim()).toBe("Read");
     expect(read.disabled).toBe(false);
     expect(read.classList.contains("read-button")).toBe(true);
     expect(getComputedStyle(read).backgroundColor).toBe(backgroundColor);
     expect(getComputedStyle(read).color).toBe(color);
-    expect(transport.requestStationStatus).not.toHaveBeenCalled();
+    expect(transport[request]).not.toHaveBeenCalled();
     read.click();
     await vi.waitFor(() => {
       fixture.detectChanges();
-      expect(element.querySelector('app-command-form [role="status"]')?.textContent)
-        .toContain("Firmware 5.6.6");
+      const result = element.querySelector('app-command-form [role="status"]')?.textContent;
+      for (const text of expectedText) expect(result).toContain(text);
     });
-    expect(transport.requestStationStatus).toHaveBeenCalledExactlyOnceWith();
+    expect(transport[request]).toHaveBeenCalledExactlyOnceWith();
     expect(transport.sendRawCommand).not.toHaveBeenCalled();
   });
 

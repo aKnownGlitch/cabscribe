@@ -90,6 +90,7 @@ export class WebSerialDccTransport implements DccTransport {
         serviceModeRead: true,
         serviceModeWrite: false,
         stationStatus: Boolean(port.readable && port.writable),
+        trackList: Boolean(port.readable && port.writable),
       },
       message:
         "The serial port is open at 115200 baud. CV writing is not enabled yet.",
@@ -163,6 +164,10 @@ export class WebSerialDccTransport implements DccTransport {
 
   requestStationStatus(): Promise<void> {
     return this.sendRawCommand("<s>");
+  }
+
+  requestTrackList(): Promise<void> {
+    return this.sendRawCommand("<=>");
   }
 
   async sendRawCommand(command: string): Promise<void> {

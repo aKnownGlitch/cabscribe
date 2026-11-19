@@ -122,7 +122,14 @@
       <div role="status" aria-atomic="true">
         @if (commandService.result(); as result) {
           @if (result.status === "pending") {
-            <p>Waiting for station status…</p>
+            <p>Waiting for the command station…</p>
+          } @else if (result.status === "observed") {
+            <p>Track modes received. The station does not mark the end of the list, so it may be incomplete.</p>
+            <ul>
+              @for (track of result.tracks; track track.id) {
+                <li>Track {{ track.id }}: {{ track.mode }}</li>
+              }
+            </ul>
           } @else if (result.status === "confirmed") {
             <p>Firmware {{ result.identity.version }} · {{ result.identity.board }} ·
               {{ result.identity.shield }} · build {{ result.identity.build }}</p>

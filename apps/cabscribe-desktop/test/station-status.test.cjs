@@ -81,3 +81,11 @@ test("desktop status IPC rejects unexpected arguments and non-app frames without
   await assert.rejects(handle({ ...event, senderFrame: {} }), /app window/);
   assert.deepEqual(writes, []);
 });
+
+test("desktop track list uses a fixed read-only request and rejects arguments", async () => {
+  const { bridge, handlers, event, writes } = loadDesktop();
+  assert.equal((await bridge.connect("test-port")).capabilities.trackList, true);
+  await assert.rejects(handlers.get("cabscribe:dcc:track-list")(event, "A"), /does not accept arguments/);
+  await bridge.requestTrackList();
+  assert.deepEqual(writes, ["<=>"]);
+});

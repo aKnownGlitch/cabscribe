@@ -47,7 +47,8 @@ describe("DCC command previews", () => {
       .toContain("query-turnout-details");
     expect(getCommandsByCategory(category, "configuration").map(({ id }) => id))
       .not.toContain("query-turnout-details");
-    expect(getCommandsByCategory("DCC accessory and programming commands", "operations")).toContain(readCv);
+    expect(getCommandsByCategory("DCC accessory and programming commands", "operations")).not.toContain(readCv);
+    expect(getCommandsByCategory("Track power and track configuration", "operations")).toContain(readCv);
     expect(getCommandsByCategory("Track power and track configuration", "configuration")).toContain(readCv);
   });
 

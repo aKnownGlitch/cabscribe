@@ -3,11 +3,13 @@ import { CommandDefinition, CommandSafetyClass, getCommandDefinition } from "./c
 import { CommandParameterValue, CommandParameterValues, previewCommand } from "./command-preview";
 import { DccSessionService } from "./dcc-session.service";
 import { DccStationStatus } from "./dcc-station-status";
+import { DccTrack } from "./dcc-track-list";
 import { DccTransportError } from "./dcc-transport";
 
 export type CommandExecutionResult =
   | { status: "pending"; timestamp: Date }
   | ({ status: "confirmed"; timestamp: Date } & DccStationStatus)
+  | { status: "observed"; timestamp: Date; tracks: readonly DccTrack[] }
   | { status: "unsupported" | "rejected" | "timeout" | "disconnected" | "invalid-response" | "unknown"; timestamp: Date; error: string };
 
 interface CommandDraft {
@@ -79,11 +81,17 @@ export class DccCommandService {
     }
 
     const pending = { status: "pending", timestamp: new Date() } as const;
+    const isTrackList = this.draft()?.definition.id === "list-tracks";
     this.lastResult.set(pending);
     let result: CommandExecutionResult;
     try {
-      const status = await this.session.readStationStatus();
-      result = { ...status, status: "confirmed", timestamp: new Date() };
+      if (isTrackList) {
+        const tracks = await this.session.readTrackList();
+        result = { status: "observed", tracks, timestamp: new Date() };
+      } else {
+        const status = await this.session.readStationStatus();
+        result = { ...status, status: "confirmed", timestamp: new Date() };
+      }
     } catch (error) {
       result = this.failure(error);
     }
@@ -95,6 +103,11 @@ export class DccCommandService {
     const draft = this.composing();
     if (!draft || draft.preview.kind === "invalid" || draft.preview.kind === "unsupported") {
       return new DccTransportError("unsupported", "Select a command and complete its required fields.");
+    }
+    if (draft.preview.kind === "ready" &&
+        draft.definition.safetyClass === CommandSafetyClass.ReadOnly &&
+        draft.definition.id === "list-tracks" && draft.preview.command === "<=>") {
+      return this.session.trackListBlock();
     }
     if (draft.preview.kind !== "ready" ||
         !["status-query", "version-query"].includes(draft.definition.id) ||
@@ -115,7 +128,7 @@ export class DccCommandService {
     return {
       status,
       timestamp: new Date(),
-      error: error instanceof Error ? error.message : "The station status query failed.",
+      error: error instanceof Error ? error.message : "The command-station query failed.",
     };
   }
 

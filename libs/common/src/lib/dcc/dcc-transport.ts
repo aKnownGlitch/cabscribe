@@ -11,6 +11,7 @@ export interface DccConnectionInfo {
     serviceModeWrite: boolean;
     /** The connection can send the dedicated read-only DCC-EX status request. */
     stationStatus?: boolean;
+    trackList?: boolean;
   };
   message?: string;
 }
@@ -45,6 +46,7 @@ export class DccTransportError extends Error {
 export interface DccTransport {
   requestLocomotiveAddress?(): Promise<void>;
   requestStationStatus?(): Promise<void>;
+  requestTrackList?(): Promise<void>;
   requestPort?(): Promise<SerialPortInfo | null>;
   listPorts(): Promise<SerialPortInfo[]>;
   connect(portId: string): Promise<DccConnectionInfo>;

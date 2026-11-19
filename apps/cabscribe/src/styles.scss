@@ -1,4 +1,15 @@
-@import '@angular/material/prebuilt-themes/indigo-pink.css';
+@import "@angular/material/prebuilt-themes/indigo-pink.css";
+
+// Style for the CabScribe application
+:root {
+  // Override the M3 system shape scale
+  --mat-sys-corner-extra-small: 8px; // Default: 4px (menus, tooltips, text fields)
+  --mat-sys-corner-small: 8px; // Default: 8px (chips, snackbars)
+  --mat-sys-corner-medium: 12px; // Default: 12px (cards, small FABs)
+  --mat-sys-corner-large: 24px; // Default: 16px (sidenavs, sheets)
+  --mat-sys-corner-extra-large: 32px; // Default: 28px (dialogs)
+  --mat-sys-corner-full: 9999px; // Default: 9999px (buttons, badges, switches)
+}
 
 * {
   box-sizing: border-box;
@@ -13,8 +24,7 @@ body {
 body {
   background: #f5f7f8;
   color: #1e2933;
-  font-family:
-    Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
 }

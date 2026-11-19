@@ -37,15 +37,16 @@ describe('DccSessionService', () => {
     return { session, transport };
   }
 
-  async function createConfirmableSession(stationStatus = false) {
+  async function createConfirmableSession(stationStatus = false, trackList = false) {
     let publish!: (message: SerialLogMessage) => void;
     let disconnect!: (message: string) => void;
     const result = await createSession({
       connect: vi.fn().mockResolvedValue({
-        capabilities: { serviceModeRead: true, serviceModeWrite: true, stationStatus },
+        capabilities: { serviceModeRead: true, serviceModeWrite: true, stationStatus, trackList },
       }),
       sendRawCommand: vi.fn().mockResolvedValue(undefined),
       requestStationStatus: vi.fn().mockResolvedValue(undefined),
+      requestTrackList: vi.fn().mockResolvedValue(undefined),
       requestLocomotiveAddress: vi.fn().mockResolvedValue(undefined),
       onSerialMessage: (listener) => {
         publish = listener;
@@ -217,6 +218,51 @@ describe('DccSessionService', () => {
       expect(commands.result()?.status).toBe('pending');
       await vi.advanceTimersByTimeAsync(1);
       expect(await query).toMatchObject({ status: 'timeout' });
+      expect(session.operationInProgress()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reports observed track modes from fragmented frames without assuming a complete list', async () => {
+    vi.useFakeTimers();
+    try {
+      const { session, transport, incoming } = await createConfirmableSession(true, true);
+      const commands = TestBed.inject(DccCommandService);
+      commands.startComposing('list-tracks');
+      const query = commands.sendComposedCommand();
+      await expect(session.readStationStatus()).rejects.toMatchObject({ code: 'unsupported' });
+      incoming('<p0 A><= A MA');
+      incoming('IN><p0 B><= B PROG>');
+      await vi.advanceTimersByTimeAsync(500);
+      expect(await query).toMatchObject({
+        status: 'observed',
+        tracks: [{ id: 'A', mode: 'MAIN' }, { id: 'B', mode: 'PROG' }],
+      });
+      expect(transport.requestTrackList).toHaveBeenCalledExactlyOnceWith();
+      expect(transport.requestStationStatus).not.toHaveBeenCalled();
+      expect(transport.sendRawCommand).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
+    ['<X>', 'rejected'],
+    ['<= A>', 'invalid-response'],
+    ['<p0>', 'timeout'],
+    [undefined, 'disconnected'],
+  ] as const)('reports track list failures (%s) without returning an empty list', async (reply, status) => {
+    vi.useFakeTimers();
+    try {
+      const { session, incoming, disconnect } = await createConfirmableSession(false, true);
+      const commands = TestBed.inject(DccCommandService);
+      commands.startComposing('list-tracks');
+      const query = commands.sendComposedCommand();
+      if (reply) incoming(reply);
+      else disconnect('Device removed');
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(await query).toMatchObject({ status });
       expect(session.operationInProgress()).toBe(false);
     } finally {
       vi.useRealTimers();
